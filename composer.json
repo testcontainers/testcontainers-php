@@ -1,0 +1,45 @@
+{
+    "name": "shyim/testcontainer",
+    "description": "Testcontainer implementation in PHP",
+    "license": "MIT",
+    "type": "library",
+    "authors": [
+        {
+            "name": "Soner Sayakci",
+            "email": "github@shyim.de"
+        }
+    ],
+    "require": {
+        "php": ">= 8.1",
+        "symfony/process": "^5.3|^6.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5",
+        "brianium/paratest": "^6.6",
+        "friendsofphp/php-cs-fixer": "^3.12",
+        "phpstan/phpstan": "^1.8",
+        "phpstan/phpstan-phpunit": "^1.1",
+        "phpstan/extension-installer": "^1.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "Testcontainer\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Testcontainer\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "integration": "paratest tests/ --bootstrap vendor/autoload.php -f",
+        "cs": "php-cs-fixer fix --dry-run",
+        "cs:fix": "php-cs-fixer fix",
+        "phpstan": "phpstan analyse"
+    },
+    "config": {
+        "allow-plugins": {
+            "phpstan/extension-installer": true
+        }
+    }
+}
