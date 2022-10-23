@@ -99,6 +99,28 @@ $pdo = new \PDO(
 // Do something with pdo
 ```
 
+### PostgreSQL
+
+```php
+<?php
+
+use Testcontainer\Container\PostgresContainer;
+
+$container = new PostgresContainer('15.0', 'password');
+$container->withPostgresDatabase('database');
+$container->withPostgresUser('username');
+
+$container->run();
+
+$pdo = new \PDO(
+    sprintf('pgsql:host=%s;port=5432;dbname=database', $container->getAddress()),
+    'username',
+    'password',
+);
+
+// Do something with pdo
+```
+
 ### Redis
 
 ```php
