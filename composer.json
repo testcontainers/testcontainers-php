@@ -2,6 +2,10 @@
     "name": "shyim/testcontainer",
     "description": "Testcontainer implementation in PHP",
     "license": "MIT",
+    "keywords": [
+        "docker",
+        "testcontainer"
+    ],
     "type": "library",
     "authors": [
         {
