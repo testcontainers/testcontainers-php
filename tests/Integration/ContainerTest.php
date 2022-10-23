@@ -101,11 +101,12 @@ class ContainerTest extends TestCase
     {
         $container = PostgresContainer::make('latest', 'test')
             ->withPostgresUser('test')
-            ->withPostgresDatabase('foo');
+            ->withPostgresDatabase('foo')
+            ->run();
 
 
         $pdo = new \PDO(
-            sprintf('postgres:host=%s;port=3306', $container->getAddress()),
+            sprintf('postgres:host=%s;port=5432', $container->getAddress()),
             'test',
             'test',
         );
