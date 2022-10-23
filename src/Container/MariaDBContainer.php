@@ -8,7 +8,7 @@ use Testcontainer\Wait\WaitForExec;
 
 class MariaDBContainer extends Container
 {
-    public function __construct(string $version = 'latest', string $mysqlRootPassword = 'root')
+    private function __construct(string $version, string $mysqlRootPassword)
     {
         parent::__construct('mariadb:' . $version);
         $this->withEnvironment('MARIADB_ROOT_PASSWORD', $mysqlRootPassword);
