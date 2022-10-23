@@ -15,9 +15,9 @@ class PostgresContainer extends Container
         $this->withWait(new WaitForExec(["pg_isready", "-h", "127.0.0.1"]));
     }
 
-    public static function make(string $version = 'latest', string $mysqlRootPassword = 'root'): self
+    public static function make(string $version = 'latest', string $dbPassword = 'root'): self
     {
-        return new self($version, $mysqlRootPassword);
+        return new self($version, $dbPassword);
     }
 
     public function withPostgresUser(string $username): self

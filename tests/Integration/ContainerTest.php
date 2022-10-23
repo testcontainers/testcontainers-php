@@ -106,12 +106,12 @@ class ContainerTest extends TestCase
 
 
         $pdo = new \PDO(
-            sprintf('postgres:host=%s;port=5432', $container->getAddress()),
+            sprintf('pgsql:host=%s;port=5432;dbname=foo', $container->getAddress()),
             'test',
             'test',
         );
 
-        $query = $pdo->query('SHOW databases');
+        $query = $pdo->query('SELECT datname FROM pg_database');
 
         $this->assertInstanceOf(\PDOStatement::class, $query);
 
