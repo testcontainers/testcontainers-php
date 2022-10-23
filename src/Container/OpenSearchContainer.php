@@ -8,7 +8,7 @@ use Testcontainer\Wait\WaitForHttp;
 
 class OpenSearchContainer extends Container
 {
-    public function __construct(string $version = 'latest')
+    private function __construct(string $version)
     {
         parent::__construct('opensearchproject/opensearch:' . $version);
         $this->withEnvironment('discovery.type', 'single-node');

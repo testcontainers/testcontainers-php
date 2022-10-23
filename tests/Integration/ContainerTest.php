@@ -9,6 +9,7 @@ use Redis;
 use Testcontainer\Container\MariaDBContainer;
 use Testcontainer\Container\MySQLContainer;
 use Testcontainer\Container\OpenSearchContainer;
+use Testcontainer\Container\PostgresContainer;
 use Testcontainer\Container\RedisContainer;
 
 class ContainerTest extends TestCase
@@ -94,5 +95,28 @@ class ContainerTest extends TestCase
         $this->assertArrayHasKey('cluster_name', $data);
 
         $this->assertEquals('docker-cluster', $data['cluster_name']);
+    }
+
+    public function testPostgreSQLContainer(): void
+    {
+        $container = PostgresContainer::make('latest', 'test')
+            ->withPostgresUser('test')
+            ->withPostgresDatabase('foo')
+            ->run();
+
+
+        $pdo = new \PDO(
+            sprintf('pgsql:host=%s;port=5432;dbname=foo', $container->getAddress()),
+            'test',
+            'test',
+        );
+
+        $query = $pdo->query('SELECT datname FROM pg_database');
+
+        $this->assertInstanceOf(\PDOStatement::class, $query);
+
+        $databases = $query->fetchAll(\PDO::FETCH_COLUMN);
+
+        $this->assertContains('foo', $databases);
     }
 }

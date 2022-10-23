@@ -38,7 +38,7 @@ class Container
      */
     private array $mounts = [];
 
-    public function __construct(private string $image)
+    protected function __construct(private string $image)
     {
         $this->wait = new WaitForNothing();
     }

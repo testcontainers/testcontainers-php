@@ -8,7 +8,7 @@ use Testcontainer\Wait\WaitForLog;
 
 class RedisContainer extends Container
 {
-    public function __construct(string $version = 'latest')
+    private function __construct(string $version)
     {
         parent::__construct('redis:' . $version);
         $this->withWait(new WaitForLog('Ready to accept connections'));

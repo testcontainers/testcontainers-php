@@ -8,7 +8,7 @@ use Testcontainer\Wait\WaitForExec;
 
 class MySQLContainer extends Container
 {
-    public function __construct(string $version = 'latest', string $mysqlRootPassword = 'root')
+    private function __construct(string $version, string $mysqlRootPassword)
     {
         parent::__construct('mysql:' . $version);
         $this->withEnvironment('MYSQL_ROOT_PASSWORD', $mysqlRootPassword);
