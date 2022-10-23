@@ -14,6 +14,47 @@ composer req --dev shyim/testcontainer
     
 ## Usage/Examples
 
+### Starting a general Container
+
+```php
+<?php
+
+use Testcontainer\Container\MySQLContainer;
+
+$container = new Container('nginx:alpine');
+
+// set an environment variable
+$container->withEnvironment('name', 'var');
+
+// enable health check for an container
+$container->withHealthCheckCommand('curl --fail localhost');
+
+// mount current dir to /var/www/html
+$container->withMount(__DIR__, '/var/www/html');
+```
+
+Normally you have to wait until the Container is ready. so for this you can define an wait rule:
+
+```php
+
+// Run mysqladmin ping until the command returns exit code 0
+$container->withWait(new WaitForExec(['mysqladmin', 'ping', '-h', '127.0.0.1']));
+
+$container->withWait(new WaitForExec(['mysqladmin', 'ping', '-h', '127.0.0.1']), function(Process $process) {
+    // throw exception if process result is bad
+});
+
+// Wait until that message is in the logs
+$container->withWait(new WaitForLog('Ready to accept connections'));
+
+
+// Wait for an http request to succeed
+$container->withWait(WaitForHttp::make($port, $method = 'GET', $path = '/'));
+
+// Wait until the docker heartcheck is green
+$container->withWait(new WaitForHealthCheck());
+```
+
 ### MySQL
 
 ```php
