@@ -12,7 +12,14 @@ class MariaDBContainer extends Container
     {
         parent::__construct('mariadb:' . $version);
         $this->withEnvironment('MARIADB_ROOT_PASSWORD', $mysqlRootPassword);
-        $this->withWait(new WaitForExec(['mysqladmin', 'ping', '-h', '127.0.0.1']));
+
+        $binary = 'mysqladmin';
+
+        if ($version === 'latest' || version_compare($version, '11.0.0', '>')) {
+            $binary = 'mariadb-admin';
+        }
+
+        $this->withWait(new WaitForExec([$binary, 'ping', '-h', '127.0.0.1']));
     }
 
     public static function make(string $version = 'latest', string $mysqlRootPassword = 'root'): self
