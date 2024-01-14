@@ -21,7 +21,7 @@ composer req --dev shyim/testcontainer
 
 use Testcontainer\Container\MySQLContainer;
 
-$container = new Container('nginx:alpine');
+$container = Container::make('nginx:alpine');
 
 // set an environment variable
 $container->withEnvironment('name', 'var');
@@ -62,7 +62,7 @@ $container->withWait(new WaitForHealthCheck());
 
 use Testcontainer\Container\MySQLContainer;
 
-$container = new MySQLContainer('8.0');
+$container = MySQLContainer::make('8.0');
 $container->withMySQLDatabase('foo');
 $container->withMySQLUser('bar', 'baz');
 
@@ -84,7 +84,7 @@ $pdo = new \PDO(
 
 use Testcontainer\Container\MariaDBContainer;
 
-$container = new MariaDBContainer('8.0');
+$container = MariaDBContainer::make('8.0');
 $container->withMariaDBDatabase('foo');
 $container->withMariaDBUser('bar', 'baz');
 
@@ -106,7 +106,7 @@ $pdo = new \PDO(
 
 use Testcontainer\Container\PostgresContainer;
 
-$container = new PostgresContainer('15.0', 'password');
+$container = PostgresContainer::make('15.0', 'password');
 $container->withPostgresDatabase('database');
 $container->withPostgresUser('username');
 
@@ -127,7 +127,7 @@ $pdo = new \PDO(
 
 use Testcontainer\Container\RedisContainer;
 
-$container = new RedisContainer('6.0');
+$container = RedisContainer::make('6.0');
 
 $container->run();
 
@@ -143,7 +143,7 @@ $redis->connect($container->getAddress());
 
 use Testcontainer\Container\OpenSearchContainer;
 
-$container = new OpenSearchContainer('2');
+$container = OpenSearchContainer::make('2');
 $container->disableSecurityPlugin();
 
 $container->run();
