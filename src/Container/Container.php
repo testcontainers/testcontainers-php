@@ -25,6 +25,7 @@ class Container
     private Process $process;
     private WaitInterface $wait;
 
+    private ?string $network = null;
     private ?string $healthCheckCommand = null;
     private int $healthCheckIntervalInMS;
 
@@ -85,6 +86,13 @@ class Container
         return $this;
     }
 
+    public function withNetwork(string $network): self
+    {
+        $this->network = $network;
+
+        return $this;
+    }
+
     public function run(bool $wait = true): self
     {
         $this->id = uniqid('testcontainer', true);
@@ -109,6 +117,11 @@ class Container
             $params[] = $this->healthCheckCommand;
             $params[] = '--health-interval';
             $params[] = $this->healthCheckIntervalInMS . 'ms';
+        }
+
+        if ($this->network !== null) {
+            $params[] = '--network';
+            $params[] = $this->network;
         }
 
         $params[] = $this->image;
@@ -210,6 +223,10 @@ class Container
 
     public function getAddress(): string
     {
+        if ($this->network !== null && !empty($this->inspectedData[0]['NetworkSettings']['Networks'][$this->network]['IPAddress'])) {
+            return $this->inspectedData[0]['NetworkSettings']['Networks'][$this->network]['IPAddress'];
+        }
+
         return $this->inspectedData[0]['NetworkSettings']['IPAddress'];
     }
 }
