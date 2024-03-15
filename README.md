@@ -151,6 +151,51 @@ $container->run();
 // Do something with opensearch
 ```
 
+### Use with symfony
+
+```yaml
+# config/packages/test/services.yaml
+
+parameters:
+  'doctrine.dbal.connection_factory.class': App\Tests\TestConnectionFactory
+```
+
+```php
+
+namespace App\Tests;
+
+use Doctrine\Bundle\DoctrineBundle\ConnectionFactory;
+use Doctrine\Common\EventManager;
+use Doctrine\DBAL\Configuration;
+use Doctrine\DBAL\Tools\DsnParser;
+use Testcontainer\Container\PostgresContainer;
+
+class TestConnectionFactory extends ConnectionFactory
+{
+    static $testDsn;
+
+    public function __construct(array $typesConfig, ?DsnParser $dsnParser = null)
+    {
+        if (!$this::$testDsn) {
+            $psql = PostgresContainer::make('14.0', 'password');
+            $psql->withPostgresDatabase('database');
+            $psql->withPostgresUser('user');
+            $psql->run();
+            $this::$testDsn = sprintf('postgresql://user:password@%s:5432/database?serverVersion=14&charset=utf8', $psql->getAddress());
+        }
+        parent::__construct($typesConfig, $dsnParser);
+    }
+
+
+    public function createConnection(array $params, ?Configuration $config = null, ?EventManager $eventManager = null, array $mappingTypes = [])
+    {
+        $params['url'] = $this::$testDsn;
+        return parent::createConnection($params, $config, $eventManager, $mappingTypes);
+    }
+
+}
+```
+
 ## License
 
 [MIT](https://choosealicense.com/licenses/mit/)
