@@ -39,6 +39,11 @@ class Container
      */
     private array $mounts = [];
 
+    /**
+     * @var array<string>
+     */
+    private array $ports = [];
+
     protected function __construct(private string $image)
     {
         $this->wait = new WaitForNothing();
@@ -86,6 +91,14 @@ class Container
         return $this;
     }
 
+    public function withPort(string $localPort, string $containerPort): self
+    {
+        $this->ports[] = '-p';
+        $this->ports[] = sprintf('%s:%s', $localPort, $containerPort);
+
+        return $this;
+    }
+
     public function withNetwork(string $network): self
     {
         $this->network = $network;
@@ -105,6 +118,7 @@ class Container
             '--name',
             $this->id,
             ...$this->mounts,
+            ...$this->ports,
         ];
 
         foreach ($this->env as $name => $value) {
