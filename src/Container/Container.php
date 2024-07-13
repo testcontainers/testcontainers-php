@@ -17,6 +17,8 @@ class Container
 {
     private string $id;
 
+    private ?string $entryPoint = null;
+
     /**
     * @var array<string, string>
     */
@@ -52,6 +54,13 @@ class Container
     public static function make(string $image): self
     {
         return new Container($image);
+    }
+
+    public function withEntryPoint(string $entryPoint): self
+    {
+        $this->entryPoint = $entryPoint;
+
+        return $this;
     }
 
     public function withEnvironment(string $name, string $value): self
@@ -136,6 +145,11 @@ class Container
         if ($this->network !== null) {
             $params[] = '--network';
             $params[] = $this->network;
+        }
+
+        if ($this->entryPoint !== null) {
+            $params[] = '--entrypoint';
+            $params[] = $this->entryPoint;
         }
 
         $params[] = $this->image;
