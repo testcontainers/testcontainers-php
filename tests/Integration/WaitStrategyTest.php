@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Testcontainer\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
+use Predis\Client;
+use Predis\Connection\ConnectionException;
 use Symfony\Component\Process\Process;
 use Testcontainer\Container\Container;
 use Testcontainer\Wait\WaitForExec;
@@ -51,8 +53,11 @@ class WaitStrategyTest extends TestCase
 
         $container->run();
 
-        $redis = new \Redis();
-        $redis->connect($container->getAddress(), 6379, 0.001);
+        $redis = new Client([
+            'scheme' => 'tcp',
+            'host'   => $container->getAddress(),
+            'port'   => 6379,
+        ]);
 
         $redis->set('foo', 'bar');
 
@@ -60,7 +65,7 @@ class WaitStrategyTest extends TestCase
 
         $container->stop();
 
-        $this->expectException(\RedisException::class);
+        $this->expectException(ConnectionException::class);
 
         $redis->get('foo');
 
@@ -69,27 +74,20 @@ class WaitStrategyTest extends TestCase
 
     public function testWaitForHTTP(): void
     {
-        $container = Container::make('opensearchproject/opensearch')
-            ->withEnvironment('discovery.type', 'single-node')
-            ->withEnvironment('plugins.security.disabled', 'true')
-            ->withWait(WaitForHttp::make(9200));
+        $container = Container::make('nginx:alpine')
+            ->withWait(WaitForHttp::make(80));
 
         $container->run();
 
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, sprintf('http://%s:%d', $container->getAddress(), 9200));
+        curl_setopt($ch, CURLOPT_URL, sprintf('http://%s:%d', $container->getAddress(), 80));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
         $response = (string) curl_exec($ch);
 
+        curl_close($ch);
+
         $this->assertNotEmpty($response);
-
-        /** @var array{cluster_name: string} $data */
-        $data = json_decode($response, true);
-
-        $this->assertArrayHasKey('cluster_name', $data);
-
-        $this->assertEquals('docker-cluster', $data['cluster_name']);
     }
 
     public function testWaitForHealthCheck(): void
@@ -103,7 +101,6 @@ class WaitStrategyTest extends TestCase
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, sprintf('http://%s:%d', $container->getAddress(), 80));
-
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
         $response = curl_exec($ch);

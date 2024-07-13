@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Testcontainer\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
-use Redis;
+use Predis\Client;
 use Testcontainer\Container\MariaDBContainer;
 use Testcontainer\Container\MySQLContainer;
 use Testcontainer\Container\OpenSearchContainer;
@@ -66,8 +66,11 @@ class ContainerTest extends TestCase
 
         $container->run();
 
-        $redis = new Redis();
-        $redis->connect($container->getAddress(), 6379, 0.001);
+        $redis = new Client([
+            'scheme' => 'tcp',
+            'host'   => $container->getAddress(),
+            'port'   => 6379,
+        ]);
 
         $redis->ping();
 

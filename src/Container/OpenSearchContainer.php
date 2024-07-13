@@ -12,6 +12,7 @@ class OpenSearchContainer extends Container
     {
         parent::__construct('opensearchproject/opensearch:' . $version);
         $this->withEnvironment('discovery.type', 'single-node');
+        $this->withEnvironment('OPENSEARCH_INITIAL_ADMIN_PASSWORD', 'c3o_ZPHo!');
         $this->withWait(WaitForHttp::make(9200));
     }
 
