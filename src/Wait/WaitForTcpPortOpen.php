@@ -10,7 +10,7 @@ use Symfony\Component\Process\Process;
 use Testcontainer\Exception\ContainerNotReadyException;
 
 /**
- * @phpstan-type ContainerInspect array<int, array{'NetworkSettings': array{'IPAddress': string}}>
+ * @phpstan-import-type ContainerInspect from \Testcontainer\Container\Container
  */
 final class WaitForTcpPortOpen implements WaitInterface
 {

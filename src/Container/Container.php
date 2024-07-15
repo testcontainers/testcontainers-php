@@ -9,9 +9,12 @@ use Testcontainer\Exception\ContainerNotReadyException;
 use Testcontainer\Registry;
 use Testcontainer\Wait\WaitForNothing;
 use Testcontainer\Wait\WaitInterface;
+use UnexpectedValueException;
 
 /**
- * @phpstan-type ContainerInspect array{0: array{NetworkSettings: array{IPAddress: string}}}
+ * @phpstan-type ContainerInspectSingleNetwork array<int, array{'NetworkSettings': array{'IPAddress': string}}>
+ * @phpstan-type ContainerInspectMultipleNetworks array<int, array{'NetworkSettings': array{'Networks': array<string, array{'IPAddress': string}>}}>
+ * @phpstan-type ContainerInspect ContainerInspectSingleNetwork|ContainerInspectMultipleNetworks
  */
 class Container
 {
@@ -165,7 +168,7 @@ class Container
         $inspect = new Process(['docker', 'inspect', $this->id]);
         $inspect->mustRun();
 
-        /** @var ContainerInspect $inspectedData  */
+        /** @var ContainerInspectSingleNetwork|ContainerInspectMultipleNetworks $inspectedData  */
         $inspectedData = json_decode($inspect->getOutput(), true, 512, JSON_THROW_ON_ERROR);
 
         $this->inspectedData = $inspectedData;
@@ -256,10 +259,20 @@ class Container
 
     public function getAddress(): string
     {
-        if ($this->network !== null && !empty($this->inspectedData[0]['NetworkSettings']['Networks'][$this->network]['IPAddress'])) {
-            return $this->inspectedData[0]['NetworkSettings']['Networks'][$this->network]['IPAddress'];
+        if (is_string($this->network)) {
+            $containerAddress = $this->inspectedData[0]['NetworkSettings']['Networks'][$this->network]['IPAddress'] ?? null;
+
+            if (is_string($containerAddress)) {
+                return $containerAddress;
+            }
         }
 
-        return $this->inspectedData[0]['NetworkSettings']['IPAddress'];
+        $containerAddress = $this->inspectedData[0]['NetworkSettings']['IPAddress'] ?? null;
+
+        if (is_string($containerAddress)) {
+            return $containerAddress;
+        }
+
+        throw new UnexpectedValueException('Unable to find container IP address');
     }
 }
