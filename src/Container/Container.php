@@ -56,6 +56,11 @@ class Container
         return new Container($image);
     }
 
+    public function getId(): string
+    {
+        return $this->id;
+    }
+
     public function withEntryPoint(string $entryPoint): self
     {
         $this->entryPoint = $entryPoint;

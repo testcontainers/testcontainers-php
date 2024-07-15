@@ -9,10 +9,12 @@ use Predis\Client;
 use Predis\Connection\ConnectionException;
 use Symfony\Component\Process\Process;
 use Testcontainer\Container\Container;
+use Testcontainer\Exception\ContainerNotReadyException;
 use Testcontainer\Wait\WaitForExec;
 use Testcontainer\Wait\WaitForHealthCheck;
 use Testcontainer\Wait\WaitForHttp;
 use Testcontainer\Wait\WaitForLog;
+use Testcontainer\Wait\WaitForTcpPortOpen;
 
 class WaitStrategyTest extends TestCase
 {
@@ -88,6 +90,42 @@ class WaitStrategyTest extends TestCase
         curl_close($ch);
 
         $this->assertNotEmpty($response);
+    }
+
+    /**
+     * @dataProvider provideWaitForTcpPortOpen
+     */
+    public function testWaitForTcpPortOpen(bool $canConnect): void
+    {
+        $container = Container::make('nginx:alpine');
+
+        if ($canConnect) {
+            $container->withWait(WaitForTcpPortOpen::make(80));
+        }
+
+        $container->run();
+
+        if ($canConnect) {
+            static::assertIsResource(fsockopen($container->getAddress(), 80), 'Failed to connect to container');
+            return;
+        }
+
+        $containerId = $container->getId();
+
+        $this->expectExceptionObject(new ContainerNotReadyException($containerId));
+
+        (new WaitForTcpPortOpen(8080))->wait($containerId);
+    }
+
+    /**
+     * @return array<string, array<bool>>
+     */
+    public function provideWaitForTcpPortOpen(): array
+    {
+        return [
+            'Can connect to container' => [true],
+            'Cannot connect to container' => [false],
+        ];
     }
 
     public function testWaitForHealthCheck(): void
