@@ -27,6 +27,7 @@ class Container
     private Process $process;
     private WaitInterface $wait;
 
+    private bool $privileged = false;
     private ?string $network = null;
     private ?string $healthCheckCommand = null;
     private int $healthCheckIntervalInMS;
@@ -108,6 +109,13 @@ class Container
         return $this;
     }
 
+    public function withPrivileged(bool $privileged = true): self
+    {
+        $this->privileged = $privileged;
+
+        return $this;
+    }
+
     public function withNetwork(string $network): self
     {
         $this->network = $network;
@@ -150,6 +158,10 @@ class Container
         if ($this->entryPoint !== null) {
             $params[] = '--entrypoint';
             $params[] = $this->entryPoint;
+        }
+
+        if ($this->privileged) {
+            $params[] = '--privileged';
         }
 
         $params[] = $this->image;
