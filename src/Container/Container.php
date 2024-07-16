@@ -7,9 +7,9 @@ namespace Testcontainer\Container;
 use Symfony\Component\Process\Process;
 use Testcontainer\Exception\ContainerNotReadyException;
 use Testcontainer\Registry;
+use Testcontainer\Trait\DockerContainerAwareTrait;
 use Testcontainer\Wait\WaitForNothing;
 use Testcontainer\Wait\WaitInterface;
-use UnexpectedValueException;
 
 /**
  * @phpstan-type ContainerInspectSingleNetwork array<int, array{'NetworkSettings': array{'IPAddress': string}}>
@@ -18,6 +18,8 @@ use UnexpectedValueException;
  */
 class Container
 {
+    use DockerContainerAwareTrait;
+
     private string $id;
 
     private ?string $entryPoint = null;
@@ -259,20 +261,10 @@ class Container
 
     public function getAddress(): string
     {
-        if (is_string($this->network)) {
-            $containerAddress = $this->inspectedData[0]['NetworkSettings']['Networks'][$this->network]['IPAddress'] ?? null;
-
-            if (is_string($containerAddress)) {
-                return $containerAddress;
-            }
-        }
-
-        $containerAddress = $this->inspectedData[0]['NetworkSettings']['IPAddress'] ?? null;
-
-        if (is_string($containerAddress)) {
-            return $containerAddress;
-        }
-
-        throw new UnexpectedValueException('Unable to find container IP address');
+        return $this->getContainerAddress(
+            containerId: $this->id,
+            networkName: $this->network,
+            inspectedData: $this->inspectedData
+        );
     }
 }

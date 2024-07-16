@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace Testcontainer\Wait;
 
-use Symfony\Component\Process\Process;
 use Testcontainer\Exception\ContainerNotReadyException;
+use Testcontainer\Trait\DockerContainerAwareTrait;
 
-/**
- * @phpstan-import-type ContainerInspect from \Testcontainer\Container\Container
- */
 class WaitForHttp implements WaitInterface
 {
+    use DockerContainerAwareTrait;
+
     public const METHOD_GET = 'GET';
     public const METHOD_POST = 'POST';
     public const METHOD_PUT = 'PUT';
@@ -59,16 +58,10 @@ class WaitForHttp implements WaitInterface
 
     public function wait(string $id): void
     {
-        $process = new Process(['docker', 'inspect', $id]);
-        $process->mustRun();
-
-        /** @var ContainerInspect $data */
-        $data = json_decode($process->getOutput(), true);
-
-        $ip = $data[0]['NetworkSettings']['IPAddress'];
+        $containerAddress = $this->getContainerAddress(containerId: $id);
 
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, sprintf('http://%s:%d%s', $ip, $this->port, $this->path));
+        curl_setopt($ch, CURLOPT_URL, sprintf('http://%s:%d%s', $containerAddress, $this->port, $this->path));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $this->method);
         curl_setopt($ch, CURLOPT_HEADER, true);
