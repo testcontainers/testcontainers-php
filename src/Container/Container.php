@@ -167,13 +167,7 @@ class Container
         $this->process = new Process($params);
         $this->process->mustRun();
 
-        $inspect = new Process(['docker', 'inspect', $this->id]);
-        $inspect->mustRun();
-
-        /** @var ContainerInspectSingleNetwork|ContainerInspectMultipleNetworks $inspectedData  */
-        $inspectedData = json_decode($inspect->getOutput(), true, 512, JSON_THROW_ON_ERROR);
-
-        $this->inspectedData = $inspectedData;
+        $this->inspectedData = $this->getContainerInspect($this->id);
 
         Registry::add($this);
 

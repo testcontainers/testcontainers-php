@@ -24,11 +24,7 @@ trait DockerContainerAwareTrait
     protected function getContainerAddress(string $containerId, ?string $networkName = null, ?array $inspectedData = null): string
     {
         if (! is_array($inspectedData)) {
-            $process = new Process(['docker', 'inspect', $containerId]);
-            $process->mustRun();
-
-            /** @var ContainerInspect $inspectedData */
-            $inspectedData = json_decode($process->getOutput(), true, 512, JSON_THROW_ON_ERROR);
+            $inspectedData = $this->getContainerInspect($containerId);
         }
 
         if (is_string($networkName)) {
@@ -46,5 +42,20 @@ trait DockerContainerAwareTrait
         }
 
         throw new UnexpectedValueException('Unable to find container IP address');
+    }
+
+    /**
+     * @param string $containerId
+     * @return ContainerInspect
+     *
+     * @throws JsonException
+     */
+    protected function getContainerInspect(string $containerId): array
+    {
+        $process = new Process(['docker', 'inspect', $containerId]);
+        $process->mustRun();
+
+        /** @var ContainerInspect */
+        return json_decode($process->getOutput(), true, 512, JSON_THROW_ON_ERROR);
     }
 }
