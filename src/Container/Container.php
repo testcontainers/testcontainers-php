@@ -7,14 +7,20 @@ namespace Testcontainer\Container;
 use Symfony\Component\Process\Process;
 use Testcontainer\Exception\ContainerNotReadyException;
 use Testcontainer\Registry;
+use Testcontainer\Trait\DockerContainerAwareTrait;
 use Testcontainer\Wait\WaitForNothing;
 use Testcontainer\Wait\WaitInterface;
 
 /**
- * @phpstan-type ContainerInspect array{0: array{NetworkSettings: array{IPAddress: string}}}
+ * @phpstan-type ContainerInspectSingleNetwork array<int, array{'NetworkSettings': array{'IPAddress': string}}>
+ * @phpstan-type ContainerInspectMultipleNetworks array<int, array{'NetworkSettings': array{'Networks': array<string, array{'IPAddress': string}>}}>
+ * @phpstan-type ContainerInspect ContainerInspectSingleNetwork|ContainerInspectMultipleNetworks
+ * @phpstan-type DockerNetwork array{CreatedAt: string, Driver: string, ID: string, IPv6: string, Internal: string, Labels: string, Name: string, Scope: string}
  */
 class Container
 {
+    use DockerContainerAwareTrait;
+
     private string $id;
 
     private ?string $entryPoint = null;
@@ -55,6 +61,11 @@ class Container
     public static function make(string $image): self
     {
         return new Container($image);
+    }
+
+    public function getId(): string
+    {
+        return $this->id;
     }
 
     public function withEntryPoint(string $entryPoint): self
@@ -169,13 +180,7 @@ class Container
         $this->process = new Process($params);
         $this->process->mustRun();
 
-        $inspect = new Process(['docker', 'inspect', $this->id]);
-        $inspect->mustRun();
-
-        /** @var ContainerInspect $inspectedData  */
-        $inspectedData = json_decode($inspect->getOutput(), true, 512, JSON_THROW_ON_ERROR);
-
-        $this->inspectedData = $inspectedData;
+        $this->inspectedData = self::dockerContainerInspect($this->id);
 
         Registry::add($this);
 
@@ -263,10 +268,10 @@ class Container
 
     public function getAddress(): string
     {
-        if ($this->network !== null && !empty($this->inspectedData[0]['NetworkSettings']['Networks'][$this->network]['IPAddress'])) {
-            return $this->inspectedData[0]['NetworkSettings']['Networks'][$this->network]['IPAddress'];
-        }
-
-        return $this->inspectedData[0]['NetworkSettings']['IPAddress'];
+        return self::dockerContainerAddress(
+            containerId: $this->id,
+            networkName: $this->network,
+            inspectedData: $this->inspectedData
+        );
     }
 }
