@@ -13,13 +13,13 @@ final class WaitForTcpPortOpen implements WaitInterface
 {
     use DockerContainerAwareTrait;
 
-    public function __construct(private readonly int $port)
+    public function __construct(private readonly int $port, private readonly ?string $network = null)
     {
     }
 
-    public static function make(int $port): self
+    public static function make(int $port, ?string $network = null): self
     {
-        return new self($port);
+        return new self($port, $network);
     }
 
     /**
@@ -27,7 +27,7 @@ final class WaitForTcpPortOpen implements WaitInterface
      */
     public function wait(string $id): void
     {
-        if (@fsockopen($this->getContainerAddress($id), $this->port) === false) {
+        if (@fsockopen(self::dockerContainerAddress(containerId: $id, networkName: $this->network), $this->port) === false) {
             throw new ContainerNotReadyException($id, new RuntimeException('Unable to connect to container TCP port'));
         }
     }

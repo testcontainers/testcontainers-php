@@ -10,6 +10,8 @@ use Predis\Connection\ConnectionException;
 use Symfony\Component\Process\Process;
 use Testcontainer\Container\Container;
 use Testcontainer\Exception\ContainerNotReadyException;
+use Testcontainer\Registry;
+use Testcontainer\Trait\DockerContainerAwareTrait;
 use Testcontainer\Wait\WaitForExec;
 use Testcontainer\Wait\WaitForHealthCheck;
 use Testcontainer\Wait\WaitForHttp;
@@ -18,6 +20,15 @@ use Testcontainer\Wait\WaitForTcpPortOpen;
 
 class WaitStrategyTest extends TestCase
 {
+    use DockerContainerAwareTrait;
+
+    public static function tearDownAfterClass(): void
+    {
+        parent::tearDownAfterClass();
+
+        Registry::cleanup();
+    }
+
     public function testWaitForExec(): void
     {
         $called = false;
@@ -95,17 +106,17 @@ class WaitStrategyTest extends TestCase
     /**
      * @dataProvider provideWaitForTcpPortOpen
      */
-    public function testWaitForTcpPortOpen(bool $canConnect): void
+    public function testWaitForTcpPortOpen(bool $wait): void
     {
         $container = Container::make('nginx:alpine');
 
-        if ($canConnect) {
+        if ($wait) {
             $container->withWait(WaitForTcpPortOpen::make(80));
         }
 
         $container->run();
 
-        if ($canConnect) {
+        if ($wait) {
             static::assertIsResource(fsockopen($container->getAddress(), 80), 'Failed to connect to container');
             return;
         }

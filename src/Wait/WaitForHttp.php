@@ -58,7 +58,7 @@ class WaitForHttp implements WaitInterface
 
     public function wait(string $id): void
     {
-        $containerAddress = $this->getContainerAddress(containerId: $id);
+        $containerAddress = self::dockerContainerAddress(containerId: $id);
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, sprintf('http://%s:%d%s', $containerAddress, $this->port, $this->path));

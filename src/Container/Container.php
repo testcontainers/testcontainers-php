@@ -15,6 +15,7 @@ use Testcontainer\Wait\WaitInterface;
  * @phpstan-type ContainerInspectSingleNetwork array<int, array{'NetworkSettings': array{'IPAddress': string}}>
  * @phpstan-type ContainerInspectMultipleNetworks array<int, array{'NetworkSettings': array{'Networks': array<string, array{'IPAddress': string}>}}>
  * @phpstan-type ContainerInspect ContainerInspectSingleNetwork|ContainerInspectMultipleNetworks
+ * @phpstan-type DockerNetwork array{CreatedAt: string, Driver: string, ID: string, IPv6: string, Internal: string, Labels: string, Name: string, Scope: string}
  */
 class Container
 {
@@ -167,7 +168,7 @@ class Container
         $this->process = new Process($params);
         $this->process->mustRun();
 
-        $this->inspectedData = $this->getContainerInspect($this->id);
+        $this->inspectedData = self::dockerContainerInspect($this->id);
 
         Registry::add($this);
 
@@ -255,7 +256,7 @@ class Container
 
     public function getAddress(): string
     {
-        return $this->getContainerAddress(
+        return self::dockerContainerAddress(
             containerId: $this->id,
             networkName: $this->network,
             inspectedData: $this->inspectedData
