@@ -12,13 +12,50 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  cs:
     runs-on: ubuntu-latest
+    name: Code Style
 
     steps:
     - uses: actions/checkout@v4
     
-    - name: Setup PHP with PECL extension
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.1'
+
+    - name: Install dependencies
+      run: composer install --prefer-dist --no-progress
+
+    - name: Run cs
+      run: composer run cs
+
+  phpstan:
+    runs-on: ubuntu-latest
+    name: Static Analysis
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.1'
+
+    - name: Install dependencies
+      run: composer install --prefer-dist --no-progress
+
+    - name: Run phpstan
+      run: composer run phpstan
+
+  phpunit:
+    runs-on: ubuntu-latest
+    name: Integration Tests
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup PHP
       uses: shivammathur/setup-php@v2
       with:
         php-version: '8.1'
@@ -29,9 +66,3 @@ jobs:
 
     - name: Run test suite
       run: composer run integration
-      
-    - name: Run cs
-      run: composer run cs
-      
-    - name: Run phpstan
-      run: composer run phpstan
