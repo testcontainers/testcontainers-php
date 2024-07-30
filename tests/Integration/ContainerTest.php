@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Testcontainer\Tests\Integration;
+namespace Testcontainers\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
 use Predis\Client;
-use Testcontainer\Container\MariaDBContainer;
-use Testcontainer\Container\MySQLContainer;
-use Testcontainer\Container\OpenSearchContainer;
-use Testcontainer\Container\PostgresContainer;
-use Testcontainer\Container\RedisContainer;
+use Testcontainers\Container\MariaDBContainer;
+use Testcontainers\Container\MySQLContainer;
+use Testcontainers\Container\OpenSearchContainer;
+use Testcontainers\Container\PostgresContainer;
+use Testcontainers\Container\RedisContainer;
 
 class ContainerTest extends TestCase
 {

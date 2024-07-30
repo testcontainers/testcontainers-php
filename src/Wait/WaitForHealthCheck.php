@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Testcontainer\Wait;
+namespace Testcontainers\Wait;
 
 use RuntimeException;
 use Symfony\Component\Process\Process;
-use Testcontainer\Exception\ContainerNotReadyException;
+use Testcontainers\Exception\ContainerNotReadyException;
 
 class WaitForHealthCheck implements WaitInterface
 {

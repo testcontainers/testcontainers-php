@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Testcontainer;
+namespace Testcontainers;
 
-use Testcontainer\Container\Container;
+use Testcontainers\Container\Container;
 
 class Registry
 {

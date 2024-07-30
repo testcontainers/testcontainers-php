@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Testcontainer\Container;
+namespace Testcontainers\Container;
 
-use Testcontainer\Wait\WaitForLog;
+use Testcontainers\Wait\WaitForLog;
 
 class RedisContainer extends Container
 {

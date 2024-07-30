@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Testcontainer\Wait;
+namespace Testcontainers\Wait;
 
 interface WaitInterface
 {

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Testcontainer\Wait;
+namespace Testcontainers\Wait;
 
 use Symfony\Component\Process\Process;
-use Testcontainer\Exception\ContainerNotReadyException;
+use Testcontainers\Exception\ContainerNotReadyException;
 
 class WaitForLog implements WaitInterface
 {

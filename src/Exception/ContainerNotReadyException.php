@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Testcontainer\Exception;
+namespace Testcontainers\Exception;
 
 class ContainerNotReadyException extends \RuntimeException
 {

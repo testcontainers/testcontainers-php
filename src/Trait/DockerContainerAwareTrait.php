@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Testcontainer\Trait;
+namespace Testcontainers\Trait;
 
 use JsonException;
 use Symfony\Component\Process\Process;
-use Testcontainer\Container\Container;
+use Testcontainers\Container\Container;
 use UnexpectedValueException;
 
 /**
