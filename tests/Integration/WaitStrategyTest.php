@@ -2,21 +2,21 @@
 
 declare(strict_types=1);
 
-namespace Testcontainer\Tests\Integration;
+namespace Testcontainers\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
 use Predis\Client;
 use Predis\Connection\ConnectionException;
 use Symfony\Component\Process\Process;
-use Testcontainer\Container\Container;
-use Testcontainer\Exception\ContainerNotReadyException;
-use Testcontainer\Registry;
-use Testcontainer\Trait\DockerContainerAwareTrait;
-use Testcontainer\Wait\WaitForExec;
-use Testcontainer\Wait\WaitForHealthCheck;
-use Testcontainer\Wait\WaitForHttp;
-use Testcontainer\Wait\WaitForLog;
-use Testcontainer\Wait\WaitForTcpPortOpen;
+use Testcontainers\Container\Container;
+use Testcontainers\Exception\ContainerNotReadyException;
+use Testcontainers\Registry;
+use Testcontainers\Trait\DockerContainerAwareTrait;
+use Testcontainers\Wait\WaitForExec;
+use Testcontainers\Wait\WaitForHealthCheck;
+use Testcontainers\Wait\WaitForHttp;
+use Testcontainers\Wait\WaitForLog;
+use Testcontainers\Wait\WaitForTcpPortOpen;
 
 class WaitStrategyTest extends TestCase
 {

@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Testcontainer\Wait;
+namespace Testcontainers\Wait;
 
 use JsonException;
 use RuntimeException;
-use Testcontainer\Exception\ContainerNotReadyException;
-use Testcontainer\Trait\DockerContainerAwareTrait;
+use Testcontainers\Exception\ContainerNotReadyException;
+use Testcontainers\Trait\DockerContainerAwareTrait;
 
 final class WaitForTcpPortOpen implements WaitInterface
 {

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Testcontainer\Container;
+namespace Testcontainers\Container;
 
-use Testcontainer\Wait\WaitForExec;
+use Testcontainers\Wait\WaitForExec;
 
 class MySQLContainer extends Container
 {

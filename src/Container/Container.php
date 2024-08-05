@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Testcontainer\Container;
+namespace Testcontainers\Container;
 
 use Symfony\Component\Process\Process;
-use Testcontainer\Exception\ContainerNotReadyException;
-use Testcontainer\Registry;
-use Testcontainer\Trait\DockerContainerAwareTrait;
-use Testcontainer\Wait\WaitForNothing;
-use Testcontainer\Wait\WaitInterface;
+use Testcontainers\Exception\ContainerNotReadyException;
+use Testcontainers\Registry;
+use Testcontainers\Trait\DockerContainerAwareTrait;
+use Testcontainers\Wait\WaitForNothing;
+use Testcontainers\Wait\WaitInterface;
 
 /**
  * @phpstan-type ContainerInspectSingleNetwork array<int, array{'NetworkSettings': array{'IPAddress': string}}>

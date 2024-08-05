@@ -2,14 +2,12 @@
 
 Testcontainers is a PHP package that makes it simple to create and clean up container-based dependencies for automated integration/smoke tests. The package is inspired by the [Testcontainers](https://www.testcontainers.org/) project for Java.
 
-[@sironheart](https://github.com/sironheart) has annoyed me to test testcontainers, but it didn't existed in PHP yet.
-
 ## Installation
 
 Add this to your project with composer
 
 ```bash
-composer req --dev shyim/testcontainer
+composer req --dev testcontainers/testcontainers
 ```
     
 ## Usage/Examples
@@ -19,7 +17,7 @@ composer req --dev shyim/testcontainer
 ```php
 <?php
 
-use Testcontainer\Container\MySQLContainer;
+use Testcontainers\Container\Container;
 
 $container = Container::make('nginx:alpine');
 
@@ -60,7 +58,7 @@ $container->withWait(new WaitForHealthCheck());
 ```php
 <?php
 
-use Testcontainer\Container\MySQLContainer;
+use Testcontainers\Container\MySQLContainer;
 
 $container = MySQLContainer::make('8.0');
 $container->withMySQLDatabase('foo');
@@ -82,7 +80,7 @@ $pdo = new \PDO(
 ```php
 <?php
 
-use Testcontainer\Container\MariaDBContainer;
+use Testcontainers\Container\MariaDBContainer;
 
 $container = MariaDBContainer::make('8.0');
 $container->withMariaDBDatabase('foo');
@@ -104,7 +102,7 @@ $pdo = new \PDO(
 ```php
 <?php
 
-use Testcontainer\Container\PostgresContainer;
+use Testcontainers\Container\PostgresContainer;
 
 $container = PostgresContainer::make('15.0', 'password');
 $container->withPostgresDatabase('database');
@@ -125,7 +123,7 @@ $pdo = new \PDO(
 
 ```php
 
-use Testcontainer\Container\RedisContainer;
+use Testcontainers\Container\RedisContainer;
 
 $container = RedisContainer::make('6.0');
 
@@ -141,7 +139,7 @@ $redis->connect($container->getAddress());
 
 ```php
 
-use Testcontainer\Container\OpenSearchContainer;
+use Testcontainers\Container\OpenSearchContainer;
 
 $container = OpenSearchContainer::make('2');
 $container->disableSecurityPlugin();
@@ -168,7 +166,7 @@ use Doctrine\Bundle\DoctrineBundle\ConnectionFactory;
 use Doctrine\Common\EventManager;
 use Doctrine\DBAL\Configuration;
 use Doctrine\DBAL\Tools\DsnParser;
-use Testcontainer\Container\PostgresContainer;
+use Testcontainers\Container\PostgresContainer;
 
 class TestConnectionFactory extends ConnectionFactory
 {

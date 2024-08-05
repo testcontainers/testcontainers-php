@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Testcontainer\Container;
+namespace Testcontainers\Container;
 
-use Testcontainer\Wait\WaitForHttp;
+use Testcontainers\Wait\WaitForHttp;
 
 class OpenSearchContainer extends Container
 {
