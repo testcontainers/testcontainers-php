@@ -26,17 +26,19 @@ class Container
     private ?string $entryPoint = null;
 
     /**
-    * @var array<string, string>
-    */
+     * @var array<string, string>
+     */
     private array $env = [];
 
     private Process $process;
     private WaitInterface $wait;
 
+    private ?string $hostname = null;
     private bool $privileged = false;
     private ?string $network = null;
     private ?string $healthCheckCommand = null;
     private int $healthCheckIntervalInMS;
+    private array $cmd = [];
 
     /**
      * @var ContainerInspect
@@ -66,6 +68,13 @@ class Container
     public function getId(): string
     {
         return $this->id;
+    }
+
+    public function withHostname(string $hostname): self
+    {
+        $this->hostname = $hostname;
+
+        return $this;
     }
 
     public function withEntryPoint(string $entryPoint): self
@@ -100,6 +109,13 @@ class Container
     {
         $this->healthCheckCommand = $command;
         $this->healthCheckIntervalInMS = $healthCheckIntervalInMS;
+
+        return $this;
+    }
+
+    public function withCmd(array $cmd): self
+    {
+        $this->cmd = $cmd;
 
         return $this;
     }
@@ -166,6 +182,11 @@ class Container
             $params[] = $this->network;
         }
 
+        if ($this->hostname !== null) {
+            $params[] = '--hostname';
+            $params[] = $this->hostname;
+        }
+
         if ($this->entryPoint !== null) {
             $params[] = '--entrypoint';
             $params[] = $this->entryPoint;
@@ -176,6 +197,10 @@ class Container
         }
 
         $params[] = $this->image;
+
+        if (count($this->cmd) > 0) {
+            array_push($params, ...$this->cmd);
+        }
 
         $this->process = new Process($params);
         $this->process->mustRun();
