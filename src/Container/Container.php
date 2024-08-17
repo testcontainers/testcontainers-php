@@ -117,6 +117,9 @@ class Container
         return $this;
     }
 
+    /**
+     * @param array<string> $cmd
+     */
     public function withCmd(array $cmd): self
     {
         $this->cmd = $cmd;
