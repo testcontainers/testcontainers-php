@@ -38,6 +38,10 @@ class Container
     private ?string $network = null;
     private ?string $healthCheckCommand = null;
     private int $healthCheckIntervalInMS;
+
+    /**
+     * @var array<string>
+     */
     private array $cmd = [];
 
     /**
