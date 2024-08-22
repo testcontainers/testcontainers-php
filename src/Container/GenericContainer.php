@@ -23,7 +23,7 @@ use Testcontainers\Wait\WaitInterface;
  * @phpstan-type ContainerInspect ContainerInspectSingleNetwork|ContainerInspectMultipleNetworks
  * @phpstan-type DockerNetwork array{CreatedAt: string, Driver: string, ID: string, IPv6: string, Internal: string, Labels: string, Name: string, Scope: string}
  */
-class Container
+class GenericContainer
 {
     protected Docker $dockerClient;
 
@@ -67,7 +67,7 @@ class Container
 
     public static function make(string $image): self
     {
-        return new Container($image);
+        return new GenericContainer($image);
     }
 
     public function getId(): string

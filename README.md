@@ -17,9 +17,9 @@ composer req --dev testcontainers/testcontainers
 ```php
 <?php
 
-use Testcontainers\Container\Container;
+use Testcontainers\Container\GenericContainer;
 
-$container = Container::make('nginx:alpine');
+$container = GenericContainer::make('nginx:alpine');
 
 // set an environment variable
 $container->withEnvironment('name', 'var');

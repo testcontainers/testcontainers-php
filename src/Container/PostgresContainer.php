@@ -6,7 +6,7 @@ namespace Testcontainers\Container;
 
 use Testcontainers\Wait\WaitForExec;
 
-class PostgresContainer extends Container
+class PostgresContainer extends GenericContainer
 {
     private function __construct(string $version, string $rootPassword)
     {

@@ -6,7 +6,7 @@ namespace Testcontainers\Container;
 
 use Testcontainers\Wait\WaitForExec;
 
-class MySQLContainer extends Container
+class MySQLContainer extends GenericContainer
 {
     private function __construct(string $version, string $mysqlRootPassword)
     {

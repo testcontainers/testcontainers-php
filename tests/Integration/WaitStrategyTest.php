@@ -8,7 +8,7 @@ use PHPUnit\Framework\TestCase;
 use Predis\Client;
 use Predis\Connection\ConnectionException;
 use Symfony\Component\Process\Process;
-use Testcontainers\Container\Container;
+use Testcontainers\Container\GenericContainer;
 use Testcontainers\Exception\ContainerNotReadyException;
 use Testcontainers\Registry;
 use Testcontainers\Trait\DockerContainerAwareTrait;
@@ -32,7 +32,7 @@ class WaitStrategyTest extends TestCase
     {
         $called = false;
 
-        $container = Container::make('mysql')
+        $container = GenericContainer::make('mysql')
             ->withEnvironment('MYSQL_ROOT_PASSWORD', 'root')
             ->withWait(new WaitForExec(['mysqladmin', 'ping', '-h', '127.0.0.1'], function (Process $process) use (&$called) {
                 $called = true;
@@ -60,7 +60,7 @@ class WaitStrategyTest extends TestCase
 
     public function testWaitForLog(): void
     {
-        $container = Container::make('redis:6.2.5')
+        $container = GenericContainer::make('redis:6.2.5')
             ->withWait(new WaitForLog('Ready to accept connections'));
 
         $container->run();
@@ -86,7 +86,7 @@ class WaitStrategyTest extends TestCase
 
     public function testWaitForHTTP(): void
     {
-        $container = Container::make('nginx:alpine')
+        $container = GenericContainer::make('nginx:alpine')
             ->withWait(WaitForHttp::make(80));
 
         $container->run();
@@ -107,7 +107,7 @@ class WaitStrategyTest extends TestCase
      */
     public function testWaitForTcpPortOpen(bool $wait): void
     {
-        $container = Container::make('nginx:alpine');
+        $container = GenericContainer::make('nginx:alpine');
 
         if ($wait) {
             $container->withWait(WaitForTcpPortOpen::make(80));
@@ -140,7 +140,7 @@ class WaitStrategyTest extends TestCase
 
     public function testWaitForHealthCheck(): void
     {
-        $container = Container::make('nginx')
+        $container = GenericContainer::make('nginx')
             ->withHealthCheckCommand('curl --fail http://localhost')
             ->withWait(new WaitForHealthCheck());
 

@@ -6,12 +6,12 @@ namespace Testcontainers\Trait;
 
 use JsonException;
 use Symfony\Component\Process\Process;
-use Testcontainers\Container\Container;
+use Testcontainers\Container\GenericContainer;
 use UnexpectedValueException;
 
 /**
- * @phpstan-import-type ContainerInspect from Container
- * @phpstan-import-type DockerNetwork from Container
+ * @phpstan-import-type ContainerInspect from GenericContainer
+ * @phpstan-import-type DockerNetwork from GenericContainer
  */
 trait DockerContainerAwareTrait
 {

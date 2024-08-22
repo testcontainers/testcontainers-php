@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace Testcontainers;
 
-use Testcontainers\Container\Container;
+use Testcontainers\Container\GenericContainer;
 
 class Registry
 {
     private static bool $registeredCleanup = false;
 
     /**
-     * @var array<int|string, Container>
+     * @var array<int|string, GenericContainer>
      */
     private static array $registry = [];
 
-    public static function add(Container $container): void
+    public static function add(GenericContainer $container): void
     {
         self::$registry[spl_object_id($container)] = $container;
 
@@ -25,7 +25,7 @@ class Registry
         }
     }
 
-    public static function remove(Container $container): void
+    public static function remove(GenericContainer $container): void
     {
         unset(self::$registry[spl_object_id($container)]);
     }

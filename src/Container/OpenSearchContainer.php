@@ -6,7 +6,7 @@ namespace Testcontainers\Container;
 
 use Testcontainers\Wait\WaitForHttp;
 
-class OpenSearchContainer extends Container
+class OpenSearchContainer extends GenericContainer
 {
     private function __construct(string $version)
     {

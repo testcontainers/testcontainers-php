@@ -6,7 +6,7 @@ namespace Testcontainers\Container;
 
 use Testcontainers\Wait\WaitForLog;
 
-class RedisContainer extends Container
+class RedisContainer extends GenericContainer
 {
     private function __construct(string $version)
     {
