@@ -15,7 +15,8 @@
     ],
     "require": {
         "php": ">= 8.1",
-        "symfony/process": "^5.0|^6.0|^7.0"
+        "beluga-php/docker-php": "^1.45",
+        "symfony/http-client": "^7.1"
     },
     "require-dev": {
         "phpunit/phpunit": "^9.5",
@@ -44,7 +45,8 @@
     },
     "config": {
         "allow-plugins": {
-            "phpstan/extension-installer": true
+            "phpstan/extension-installer": true,
+            "php-http/discovery": true
         }
     }
 }

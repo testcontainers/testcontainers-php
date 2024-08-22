@@ -20,7 +20,6 @@ use Testcontainers\Wait\WaitForTcpPortOpen;
 
 class WaitStrategyTest extends TestCase
 {
-    use DockerContainerAwareTrait;
 
     public static function tearDownAfterClass(): void
     {

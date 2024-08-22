@@ -4,24 +4,22 @@ declare(strict_types=1);
 
 namespace Testcontainers\Wait;
 
-use RuntimeException;
-use Symfony\Component\Process\Process;
+use Docker\Docker;
 use Testcontainers\Exception\ContainerNotReadyException;
 
 class WaitForHealthCheck implements WaitInterface
 {
+    protected Docker $dockerClient;
+
+    public function __construct()
+    {
+        $this->dockerClient = Docker::create();
+    }
     public function wait(string $id): void
     {
-        $process = new Process(['docker', 'inspect', '--format', '{{json .State.Health.Status}}', $id]);
-        $process->mustRun();
-
-        $status = json_decode($process->getOutput(), true, 512, JSON_THROW_ON_ERROR);
-
-        if (!is_string($status)) {
-            throw new ContainerNotReadyException($id, new RuntimeException('Invalid json output'));
-        }
-
-        $status = trim($status, '"');
+        $containerInspect = $this->dockerClient->containerInspect($id);
+        $containerInspect->getBody()->getContents();
+        dd($containerInspect->getStatusCode());
 
         if ($status !== 'healthy') {
             throw new ContainerNotReadyException($id);

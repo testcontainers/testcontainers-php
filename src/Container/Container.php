@@ -4,11 +4,17 @@ declare(strict_types=1);
 
 namespace Testcontainers\Container;
 
-use Symfony\Component\Process\Process;
+use Docker\API\Model\ContainersCreatePostBody;
+use Docker\API\Model\ContainersIdExecPostBody;
+use Docker\API\Model\EndpointSettings;
+use Docker\API\Model\HealthConfig;
+use Docker\API\Model\Mount;
+use Docker\API\Model\NetworkingConfig;
+use Docker\API\Model\Port;
+use Docker\Docker;
+use Psr\Http\Message\ResponseInterface;
 use Testcontainers\Exception\ContainerNotReadyException;
 use Testcontainers\Registry;
-use Testcontainers\Trait\DockerContainerAwareTrait;
-use Testcontainers\Wait\WaitForNothing;
 use Testcontainers\Wait\WaitInterface;
 
 /**
@@ -19,43 +25,44 @@ use Testcontainers\Wait\WaitInterface;
  */
 class Container
 {
-    use DockerContainerAwareTrait;
+    protected Docker $dockerClient;
 
-    private string $id;
+    protected ContainersCreatePostBody $containerConfig;
 
-    private ?string $entryPoint = null;
+    protected string $image;
+
+    protected string $containerName;
+
+    protected string $id;
+
+    protected ?string $entryPoint = null;
+
+    protected ?HealthConfig $healthConfig = null;
 
     /**
     * @var array<string, string>
     */
-    private array $env = [];
+    protected array $env = [];
 
-    private Process $process;
-    private WaitInterface $wait;
+    protected WaitInterface $wait;
 
-    private bool $privileged = false;
-    private ?string $network = null;
-    private ?string $healthCheckCommand = null;
-    private int $healthCheckIntervalInMS;
+    protected bool $privileged = false;
+    protected ?string $networkName = null;
 
     /**
-     * @var ContainerInspect
+     * @var array<Mount>
      */
-    private array $inspectedData;
+    protected array $mounts = [];
 
     /**
-     * @var array<string>
+     * @var array<Port>
      */
-    private array $mounts = [];
+    protected array $ports = [];
 
-    /**
-     * @var array<string>
-     */
-    private array $ports = [];
-
-    protected function __construct(private string $image)
+    protected function __construct(string $image)
     {
-        $this->wait = new WaitForNothing();
+        $this->image = $image;
+        $this->dockerClient = Docker::create();
     }
 
     public static function make(string $image): self
@@ -98,24 +105,24 @@ class Container
 
     public function withHealthCheckCommand(string $command, int $healthCheckIntervalInMS = 1000): self
     {
-        $this->healthCheckCommand = $command;
-        $this->healthCheckIntervalInMS = $healthCheckIntervalInMS;
+        $this->healthConfig = new HealthConfig([
+            'Test' => ['CMD', $command],
+            'Interval' => $healthCheckIntervalInMS,
+        ]);
 
         return $this;
     }
 
     public function withMount(string $localPath, string $containerPath): self
     {
-        $this->mounts[] = '-v';
-        $this->mounts[] = sprintf('%s:%s', $localPath, $containerPath);
+        $this->mounts[] = new Mount(['type' => 'bind', 'source' => $localPath, 'target' => $containerPath]);
 
         return $this;
     }
 
     public function withPort(string $localPort, string $containerPort): self
     {
-        $this->ports[] = '-p';
-        $this->ports[] = sprintf('%s:%s', $localPort, $containerPort);
+        $this->ports[] = new Port(['privatePort' => (int) $containerPort, 'publicPort' => (int) $localPort]);
 
         return $this;
     }
@@ -127,60 +134,52 @@ class Container
         return $this;
     }
 
-    public function withNetwork(string $network): self
+    public function withNetwork(string $networkName): self
     {
-        $this->network = $network;
+        $this->networkName = $networkName;
 
         return $this;
     }
 
     public function run(bool $wait = true): self
     {
-        $this->id = uniqid('testcontainer', true);
+        $this->containerName = uniqid('testcontainer', true);
 
-        $params = [
-            'docker',
-            'run',
-            '--rm',
-            '--detach',
-            '--name',
-            $this->id,
-            ...$this->mounts,
-            ...$this->ports,
-        ];
+        $this->containerConfig = new ContainersCreatePostBody();
+        $this->containerConfig->setImage($this->image);
 
+        $envs = [];
         foreach ($this->env as $name => $value) {
-            $params[] = '--env';
-            $params[] = $name . '=' . $value;
+            $envs[] = $name . '=' . $value;
         }
 
-        if ($this->healthCheckCommand !== null) {
-            $params[] = '--health-cmd';
-            $params[] = $this->healthCheckCommand;
-            $params[] = '--health-interval';
-            $params[] = $this->healthCheckIntervalInMS . 'ms';
+        $this->containerConfig->setEnv($envs);
+
+        if ($this->healthConfig !== null) {
+            $this->containerConfig->setHealthcheck($this->healthConfig);
         }
 
-        if ($this->network !== null) {
-            $params[] = '--network';
-            $params[] = $this->network;
+        if ($this->networkName !== null) {
+            $this->containerConfig->setNetworkingConfig(new NetworkingConfig([
+                'endpointsConfig' => [
+                    $this->networkName => new EndpointSettings([
+                        'aliases' => [$this->containerName],
+                        'networkID' => $this->networkName,
+                    ]),
+            ]]));
         }
 
         if ($this->entryPoint !== null) {
-            $params[] = '--entrypoint';
-            $params[] = $this->entryPoint;
+            $this->containerConfig->setEntrypoint([$this->entryPoint]);
         }
 
         if ($this->privileged) {
-            $params[] = '--privileged';
+            //TODO: Implement privileged mode
         }
 
-        $params[] = $this->image;
+        $containerCreateResponse = $this->dockerClient->containerCreate($this->containerConfig, ['name' => $this->containerName]);
 
-        $this->process = new Process($params);
-        $this->process->mustRun();
-
-        $this->inspectedData = self::dockerContainerInspect($this->id);
+        $this->id = $containerCreateResponse->getId();
 
         Registry::add($this);
 
@@ -193,46 +192,45 @@ class Container
 
     public function wait(int $wait = 100): self
     {
-        for ($i = 0; $i < $wait; $i++) {
-            try {
-                $this->wait->wait($this->id);
-                return $this;
-            } catch (ContainerNotReadyException $e) {
-                usleep(500000);
-            }
-        }
+        usleep(500000);
+        return $this;
 
-        throw new ContainerNotReadyException($this->id);
+//        for ($i = 0; $i < $wait; $i++) {
+//            try {
+//                $this->dockerClient->containerWait($this->id);
+//                return $this;
+//            } catch (ContainerNotReadyException $e) {
+//                usleep(500000);
+//            }
+//        }
+//
+//        throw new ContainerNotReadyException($this->id);
     }
 
     public function stop(): self
     {
-        $stop = new Process(['docker', 'stop', $this->id]);
-        $stop->mustRun();
+        $this->dockerClient->containerStop($this->id);
 
         return $this;
     }
 
     public function start(): self
     {
-        $start = new Process(['docker', 'start', $this->id]);
-        $start->mustRun();
+        $this->dockerClient->containerStart($this->id);
 
         return $this;
     }
 
     public function restart(): self
     {
-        $restart = new Process(['docker', 'restart', $this->id]);
-        $restart->mustRun();
+        $this->dockerClient->containerRestart($this->id);
 
         return $this;
     }
 
     public function remove(): self
     {
-        $remove = new Process(['docker', 'rm', '-f', $this->id]);
-        $remove->mustRun();
+        $this->dockerClient->containerDelete($this->id);
 
         Registry::remove($this);
 
@@ -241,37 +239,37 @@ class Container
 
     public function kill(): self
     {
-        $kill = new Process(['docker', 'kill', $this->id]);
-        $kill->mustRun();
+        $this->dockerClient->containerKill($this->id);
 
         return $this;
     }
 
     /**
-     * @param array<string> $command
+     * @param array<string> $commandAsArray
      */
-    public function execute(array $command): Process
+    public function execute(array $commandAsArray): ResponseInterface
     {
-        $process = new Process(['docker', 'exec', $this->id, ...$command]);
-        $process->mustRun();
-
-        return $process;
+        $command = new ContainersIdExecPostBody();
+        $command->setCmd($commandAsArray);
+        return $this->dockerClient->containerExec($this->id, $command);
     }
 
     public function logs(): string
     {
-        $logs = new Process(['docker', 'logs', $this->id]);
-        $logs->mustRun();
-
-        return $logs->getOutput();
+        return $this->dockerClient->containerLogs($this->id)?->getBody()?->getContents() ?? '';
     }
 
     public function getAddress(): string
     {
-        return self::dockerContainerAddress(
-            containerId: $this->id,
-            networkName: $this->network,
-            inspectedData: $this->inspectedData
-        );
+        $containerNetworks = $this->dockerClient->containerInspect($this->id)
+            ->getNetworkSettings()->getNetworks();
+        $containerAddress = '';
+        foreach ($containerNetworks as $network) {
+            if($network->getNetworkID() === $this->id) {
+                $containerAddress = $network->getIpAddress();
+                break;
+            }
+        }
+        return $containerAddress;
     }
 }
