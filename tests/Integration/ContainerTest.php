@@ -21,6 +21,7 @@ class ContainerTest extends TestCase
         $container->withMySQLUser('bar', 'baz');
 
         $container->run();
+        die(123);
 
         $pdo = new \PDO(
             sprintf('mysql:host=%s;port=3306', $container->getAddress()),

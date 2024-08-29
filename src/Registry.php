@@ -32,8 +32,8 @@ class Registry
 
     public static function cleanup(): void
     {
-        foreach (self::$registry as $container) {
-            $container->remove();
-        }
+//        foreach (self::$registry as $container) {
+//            $container->remove();
+//        }
     }
 }
