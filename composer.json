@@ -19,6 +19,8 @@
         "symfony/http-client": "^7.1"
     },
     "require-dev": {
+        "ext-curl": "*",
+        "ext-pdo": "*",
         "phpunit/phpunit": "^9.5",
         "brianium/paratest": "^6.6",
         "friendsofphp/php-cs-fixer": "^3.12",
