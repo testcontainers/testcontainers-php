@@ -16,7 +16,7 @@ class MariaDBContainerTest extends ContainerTestCase
             ->start();
     }
 
-    public function testMySQLContainer(): void
+    public function testMariaDBContainer(): void
     {
         $pdo = new \PDO(
             sprintf('mysql:host=%s;port=3306', self::$container->getAddress()),

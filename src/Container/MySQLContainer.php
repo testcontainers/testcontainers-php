@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Testcontainers\Container;
 
-use Testcontainers\Wait\WaitForExec;
+use Testcontainers\Wait\WaitForLog;
 
 class MySQLContainer extends GenericContainer
 {
@@ -12,6 +12,8 @@ class MySQLContainer extends GenericContainer
     {
         parent::__construct('mysql:' . $version);
         $this->withExposedPorts(3306);
+
+        $this->withWait(new WaitForLog('ready for connections'));
         $this->withEnvironment('MYSQL_ROOT_PASSWORD', $mysqlRootPassword);
     }
 
