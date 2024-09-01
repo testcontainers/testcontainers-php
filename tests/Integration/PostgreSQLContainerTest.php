@@ -10,8 +10,8 @@ class PostgreSQLContainerTest extends ContainerTestCase
 {
     public static function setUpBeforeClass(): void
     {
-        self::$container = (new PostgresContainer('latest', 'test'))
-            ->withPostgresUser('test')
+        self::$container = (new PostgresContainer())
+            ->withPostgresUser('bar')
             ->withPostgresDatabase('foo')
             ->start();
     }
@@ -19,8 +19,8 @@ class PostgreSQLContainerTest extends ContainerTestCase
     public function testPostgreSQLContainer(): void
     {
         $pdo = new \PDO(
-            sprintf('pgsql:host=%s;port=5432;dbname=foo', self::$container->getAddress()),
-            'test',
+            'pgsql:host=127.0.0.1;port=5432;dbname=foo',
+            'bar',
             'test',
         );
 
