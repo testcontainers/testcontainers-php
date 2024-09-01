@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Testcontainers\Container;
 
+use Docker\API\Client;
 use Docker\API\Exception\ContainerCreateNotFoundException;
 use Docker\API\Model\ContainersCreatePostBody;
 use Docker\API\Model\ContainersIdExecPostBody;
@@ -34,6 +35,9 @@ class GenericContainer
     protected string $containerName;
 
     protected string $id;
+
+    /** @var array<string> */
+    protected array $command = [];
 
     protected ?string $entryPoint = null;
 
@@ -75,6 +79,29 @@ class GenericContainer
     public function getId(): string
     {
         return $this->id;
+    }
+
+    public function withCommand(array $command): self
+    {
+        $this->command = $command;
+        return $this;
+    }
+
+    public function exec(array $command): string
+    {
+        $execConfig = (new ContainersIdExecPostBody())
+            ->setCmd($command)
+            ->setAttachStdout(true)
+            ->setAttachStderr(true);
+
+        // Create and start the exec command
+        $exec = $this->dockerClient->containerExec($this->id, $execConfig);
+        $contents = $this->dockerClient
+            ->execStart($exec->getId(), null, Client::FETCH_RESPONSE)
+            ?->getBody()
+            ->getContents() ?? '';
+
+        return preg_replace('/[\x00-\x1F\x7F]/u', '', $contents);
     }
 
     public function withEntryPoint(string $entryPoint): self
@@ -194,12 +221,6 @@ class GenericContainer
         return $this;
     }
 
-    public function wait(): self
-    {
-        $this->wait->wait($this->id);
-        return $this;
-    }
-
     public function stop(): self
     {
         $this->dockerClient->containerStop($this->id);
@@ -211,19 +232,23 @@ class GenericContainer
     {
         try {
             $containerCreatePostBody = new ContainersCreatePostBody();
-            $portMap = new \ArrayObject();
+            //setup only if we need to expose ports
+            if(!empty($this->exposedPorts)) {
+                $portMap = new \ArrayObject();
 
-            foreach ($this->exposedPorts as $port) {
-                $portBinding = new PortBinding();
-                $portBinding->setHostPort(explode('/', $port)[0]);
-                $portBinding->setHostIp('0.0.0.0');
-                $portMap[$port] = [$portBinding];
+                foreach ($this->exposedPorts as $port) {
+                    $portBinding = new PortBinding();
+                    $portBinding->setHostPort(explode('/', $port)[0]);
+                    $portBinding->setHostIp('0.0.0.0');
+                    $portMap[$port] = [$portBinding];
+                }
+
+                $hostConfig = new HostConfig();
+                $hostConfig->setPortBindings($portMap);
+                $containerCreatePostBody->setHostConfig($hostConfig);
             }
-
-            $hostConfig = new HostConfig();
-            $hostConfig->setPortBindings($portMap);
-            $containerCreatePostBody->setHostConfig($hostConfig);
             $containerCreatePostBody->setImage($this->image);
+            $containerCreatePostBody->setCmd($this->command);
             $envs = [];
             foreach ($this->env as $key => $value) {
                 $envs[] = $key . '=' . $value;
@@ -245,7 +270,9 @@ class GenericContainer
         if(!isset($this->wait)) {
             $this->withWait(new WaitForContainerRunning());
         }
-        $this->wait();
+
+        $this->wait->wait($this->id);
+
         return $this;
     }
 
