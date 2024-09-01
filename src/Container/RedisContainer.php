@@ -8,12 +8,17 @@ use Testcontainers\Wait\WaitForLog;
 
 class RedisContainer extends GenericContainer
 {
-    private function __construct(string $version)
+    public function __construct(string $version = 'latest')
     {
         parent::__construct('redis:' . $version);
-        $this->withWait(new WaitForLog('Ready to accept connections'));
+        $this->withExposedPorts(6379);
+        //$this->withWait(new WaitForLog('Ready to accept connections'));
     }
 
+    /**
+     *  @deprecated Use constructor instead
+     *  Left for backward compatibility
+     */
     public static function make(string $version = 'latest'): self
     {
         return new self($version);

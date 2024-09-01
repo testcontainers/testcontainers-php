@@ -14,7 +14,6 @@ use Docker\API\Model\PortBinding;
 use Docker\Docker;
 use Psr\Http\Message\ResponseInterface;
 use Testcontainers\ContainerRuntime\ContainerRuntimeClient;
-use Testcontainers\Registry;
 use Testcontainers\Wait\WaitForContainerRunning;
 use Testcontainers\Wait\WaitInterface;
 
@@ -225,7 +224,11 @@ class GenericContainer
             $hostConfig->setPortBindings($portMap);
             $containerCreatePostBody->setHostConfig($hostConfig);
             $containerCreatePostBody->setImage($this->image);
-            //$containerCreatePostBody->setEnv($this->env);
+            $envs = [];
+            foreach ($this->env as $key => $value) {
+                $envs[] = $key . '=' . $value;
+            }
+            $containerCreatePostBody->setEnv($envs);
 
             $containerCreateResponse = $this->dockerClient->containerCreate($containerCreatePostBody);
             $this->id = $containerCreateResponse?->getId() ?? '';
@@ -236,8 +239,6 @@ class GenericContainer
             ]);
             return $this->start();
         }
-
-        Registry::add($this);
 
         $this->dockerClient->containerStart($this->id);
 
@@ -259,8 +260,6 @@ class GenericContainer
     {
         $this->dockerClient->containerStop($this->id);
         $this->dockerClient->containerDelete($this->id);
-
-        Registry::remove($this);
 
         return $this;
     }
@@ -317,7 +316,7 @@ class GenericContainer
     {
         $response = $this->dockerClient->containerInspect($this->id);
         $settings = $response->getNetworkSettings();
-        var_dump($settings);
+        //var_dump($settings);
 
         $ports = [];
         foreach ($settings->getPorts() as $port => $value) {

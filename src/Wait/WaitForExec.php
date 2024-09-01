@@ -8,7 +8,6 @@ use Closure;
 use Docker\API\Model\ContainersIdExecPostBody;
 use Docker\API\Model\ExecIdStartPostBody;
 use Docker\Docker;
-use Testcontainers\Exception\ContainerNotReadyException;
 
 class WaitForExec implements WaitInterface
 {

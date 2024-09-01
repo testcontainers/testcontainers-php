@@ -10,8 +10,6 @@ use Predis\Connection\ConnectionException;
 use Symfony\Component\Process\Process;
 use Testcontainers\Container\GenericContainer;
 use Testcontainers\Exception\ContainerNotReadyException;
-use Testcontainers\Registry;
-use Testcontainers\Trait\DockerContainerAwareTrait;
 use Testcontainers\Wait\WaitForExec;
 use Testcontainers\Wait\WaitForHealthCheck;
 use Testcontainers\Wait\WaitForHttp;
@@ -24,8 +22,6 @@ class WaitStrategyTest extends TestCase
     public static function tearDownAfterClass(): void
     {
         parent::tearDownAfterClass();
-
-        Registry::cleanup();
     }
 
     public function testWaitForExec(): void

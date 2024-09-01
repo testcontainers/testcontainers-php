@@ -41,6 +41,8 @@ class WaitForContainerRunning implements WaitInterface
                 return;
             }
 
+            var_dump($containerStatus);
+
             usleep($this->pollInterval * 1000);
         }
     }

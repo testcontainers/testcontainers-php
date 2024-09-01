@@ -8,13 +8,17 @@ use Testcontainers\Wait\WaitForExec;
 
 class MySQLContainer extends GenericContainer
 {
-    private function __construct(string $version, string $mysqlRootPassword)
+    public function __construct(string $version = 'latest', string $mysqlRootPassword = 'root')
     {
         parent::__construct('mysql:' . $version);
+        $this->withExposedPorts(3306);
         $this->withEnvironment('MYSQL_ROOT_PASSWORD', $mysqlRootPassword);
-        $this->withWait(new WaitForExec(['mysqladmin', 'ping', '-h', '127.0.0.1']));
     }
 
+    /**
+     *  @deprecated Use constructor instead
+     *  Left for backward compatibility
+     */
     public static function make(string $version = 'latest', string $mysqlRootPassword = 'root'): self
     {
         return new self($version, $mysqlRootPassword);
