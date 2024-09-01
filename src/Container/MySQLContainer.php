@@ -12,9 +12,8 @@ class MySQLContainer extends GenericContainer
     {
         parent::__construct('mysql:' . $version);
         $this->withExposedPorts(3306);
-
-        $this->withWait(new WaitForLog('ready for connections'));
         $this->withEnvironment('MYSQL_ROOT_PASSWORD', $mysqlRootPassword);
+        $this->withWait(new WaitForLog('ready for connections'));
     }
 
     /**

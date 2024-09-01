@@ -19,7 +19,7 @@ class MySQLContainerTest extends ContainerTestCase
     public function testMySQLContainer(): void
     {
         $pdo = new \PDO(
-            sprintf('mysql:host=%s;port=3306', self::$container->getAddress()),
+            sprintf('mysql:host=%s;port=3306', '127.0.0.1'),
             'bar',
             'baz',
         );
