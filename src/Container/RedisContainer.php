@@ -12,7 +12,7 @@ class RedisContainer extends GenericContainer
     {
         parent::__construct('redis:' . $version);
         $this->withExposedPorts(6379);
-        //$this->withWait(new WaitForLog('Ready to accept connections'));
+        $this->withWait(new WaitForLog('Ready to accept connections'));
     }
 
     /**

@@ -4,33 +4,53 @@ declare(strict_types=1);
 
 namespace Testcontainers\Wait;
 
+use Docker\API\Runtime\Client\Client;
 use Docker\Docker;
-use Symfony\Component\Process\Process;
-use Testcontainers\Exception\ContainerNotReadyException;
+use Testcontainers\Exception\ContainerWaitingTimeoutException;
 
+/**
+ * Uses $timout and $pollInterval in milliseconds to set the parameters for waiting.
+ */
 class WaitForLog implements WaitInterface
 {
     protected Docker $dockerClient;
 
-    public function __construct(private string $message, private bool $enableRegex = false)
-    {
+    public function __construct(
+        protected string $message,
+        protected bool $enableRegex = false,
+        protected int $timeout = 10000,
+        protected int $pollInterval = 500
+    ) {
         $this->dockerClient = Docker::create();
     }
 
     public function wait(string $id): void
     {
-        $logs = $this->dockerClient->containerLogs($id);
+        $startTime = microtime(true) * 1000;
 
-        $output = $logs->getBody()->getContents();
+        while (true) {
+            $elapsedTime = (microtime(true) * 1000) - $startTime;
 
-        if ($this->enableRegex) {
-            if (!preg_match($this->message, $output)) {
-                throw new ContainerNotReadyException($id, new \RuntimeException('Message not found in logs'));
+            if ($elapsedTime > $this->timeout) {
+                throw new ContainerWaitingTimeoutException($id);
             }
-        } else {
-            if (!str_contains($output, $this->message)) {
-                throw new ContainerNotReadyException($id, new \RuntimeException('Message not found in logs'));
+
+            $output = $this->dockerClient
+                ->containerLogs($id, ['stdout' => true, 'stderr' => true], Client::FETCH_RESPONSE)
+                ?->getBody()
+                ->getContents() ?? '';
+
+            $output = preg_replace('/[\x00-\x1F\x7F]/u', '', mb_convert_encoding($output, 'UTF-8', 'UTF-8')) ?? '';
+
+            if ($this->enableRegex) {
+                if (preg_match($this->message, $output)) {
+                    return;
+                }
+            } elseif (str_contains($output, $this->message)) {
+                return;
             }
+
+            usleep($this->pollInterval * 1000);
         }
     }
 }
