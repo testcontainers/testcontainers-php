@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Testcontainers\Tests\Integration;
 
-use Testcontainers\Container\MySQLContainer;
+use Testcontainers\Modules\MySQLContainer;
 
 class MySQLContainerTest extends ContainerTestCase
 {
@@ -19,7 +19,11 @@ class MySQLContainerTest extends ContainerTestCase
     public function testMySQLContainer(): void
     {
         $pdo = new \PDO(
-            sprintf('mysql:host=%s;port=3306', '127.0.0.1'),
+            sprintf(
+                'mysql:host=%s;port=%d',
+                self::$container->getHost(),
+                self::$container->getFirstMappedPort()
+            ),
             'bar',
             'baz',
         );

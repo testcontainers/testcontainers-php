@@ -5,16 +5,18 @@ declare(strict_types=1);
 namespace Testcontainers\Wait;
 
 use Docker\API\Model\ContainersIdJsonGetResponse200;
+use Testcontainers\Container\StartedTestContainer;
 use Testcontainers\Exception\ContainerNotReadyException;
 
 /**
  * Simply makes container inspect and checks if container is running.
  * Uses $timout and $pollInterval in milliseconds to set the parameters for waiting.
  */
-class WaitForContainerRunning extends BaseWait
+class WaitForContainer extends BaseWaitStrategy
 {
-    public function wait(string $id): void
+    public function wait(StartedTestContainer $container): void
     {
+        $id = $container->getId();
         $startTime = microtime(true) * 1000;
 
         while (true) {
@@ -25,7 +27,7 @@ class WaitForContainerRunning extends BaseWait
             }
 
             /** @var ContainersIdJsonGetResponse200 | null $containerInspect */
-            $containerInspect = $this->dockerClient->containerInspect($id);
+            $containerInspect = $container->getClient()->containerInspect($id);
             $containerStatus = $containerInspect?->getState()?->getStatus();
 
             if ($containerStatus === 'running') {

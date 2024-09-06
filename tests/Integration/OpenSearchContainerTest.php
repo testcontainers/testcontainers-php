@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Testcontainers\Tests\Integration;
 
-use Testcontainers\Container\OpenSearchContainer;
+use Testcontainers\Modules\OpenSearchContainer;
 
 class OpenSearchContainerTest extends ContainerTestCase
 {
@@ -21,7 +21,11 @@ class OpenSearchContainerTest extends ContainerTestCase
     public function testOpenSearch(): void
     {
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, sprintf('http://%s:%d', '127.0.0.1', 9200));
+        curl_setopt($ch, CURLOPT_URL, sprintf(
+            'http://%s:%d',
+            self::$container->getHost(),
+            self::$container->getFirstMappedPort()
+        ));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
         $response = (string) curl_exec($ch);

@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace Testcontainers\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
-use Testcontainers\Container\GenericContainer;
+use Testcontainers\Container\StartedTestContainer;
 
 abstract class ContainerTestCase extends TestCase
 {
-    protected static GenericContainer $container;
+    protected static StartedTestContainer $container;
 
     protected function tearDown(): void
     {
-        self::$container->remove();
+        self::$container->stop();
     }
 }

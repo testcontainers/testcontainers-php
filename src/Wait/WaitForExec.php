@@ -5,14 +5,15 @@ declare(strict_types=1);
 namespace Testcontainers\Wait;
 
 use Closure;
-use Docker\API\Client;
 use Docker\API\Model\ContainersIdExecPostBody;
+use Docker\API\Model\ExecIdJsonGetResponse200;
+use Testcontainers\Container\StartedTestContainer;
 use Testcontainers\Exception\ContainerWaitingTimeoutException;
 
 /**
  * Uses $timout and $pollInterval in milliseconds to set the parameters for waiting.
  */
-class WaitForExec extends BaseWait
+class WaitForExec extends BaseWaitStrategy
 {
     protected ContainersIdExecPostBody $execConfig;
 
@@ -28,32 +29,23 @@ class WaitForExec extends BaseWait
         parent::__construct($timeout, $pollInterval);
     }
 
-    public function wait(string $id): void
+    public function wait(StartedTestContainer $container): void
     {
-        $this->execConfig = (new ContainersIdExecPostBody())
-            ->setCmd($this->command)
-            ->setAttachStdout(true)
-            ->setAttachStderr(true);
-
         $startTime = microtime(true) * 1000;
 
         while (true) {
             $elapsedTime = (microtime(true) * 1000) - $startTime;
 
             if ($elapsedTime > $this->timeout) {
-                throw new ContainerWaitingTimeoutException($id);
+                throw new ContainerWaitingTimeoutException($container->getId());
             }
 
-            // Create and start the exec command
-            $exec = $this->dockerClient->containerExec($id, $this->execConfig);
-            $contents = $this->dockerClient
-                ->execStart($exec->getId(), null, Client::FETCH_RESPONSE)
-                ?->getBody()
-                ->getContents() ?? '';
+            $contents = $container->exec($this->command);
 
             // Inspect the exec to check the exit code
-            $execInspect = $this->dockerClient->execInspect($exec->getId());
-            $exitCode = $execInspect->getExitCode();
+            /** @var ExecIdJsonGetResponse200 | null $execInspect */
+            $execInspect = $container->getClient()->execInspect($container->getLastExecId() ?? '');
+            $exitCode = $execInspect?->getExitCode();
 
             // If a custom check function is provided, use it to validate the command output
             if ($this->checkFunction !== null) {

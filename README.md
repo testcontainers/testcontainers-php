@@ -19,7 +19,7 @@ composer req --dev testcontainers/testcontainers
 
 use Testcontainers\Container\GenericContainer;
 
-$container = GenericContainer::make('nginx:alpine');
+$container = new GenericContainer::make('nginx:alpine');
 
 // set an environment variable
 $container->withEnvironment('name', 'var');
@@ -58,7 +58,7 @@ $container->withWait(new WaitForHealthCheck());
 ```php
 <?php
 
-use Testcontainers\Container\MySQLContainer;
+use Testcontainers\Modules\MySQLContainer;
 
 $container = MySQLContainer::make('8.0');
 $container->withMySQLDatabase('foo');
@@ -80,7 +80,7 @@ $pdo = new \PDO(
 ```php
 <?php
 
-use Testcontainers\Container\MariaDBContainer;
+use Testcontainers\Modules\MariaDBContainer;
 
 $container = MariaDBContainer::make('8.0');
 $container->withMariaDBDatabase('foo');
@@ -102,7 +102,7 @@ $pdo = new \PDO(
 ```php
 <?php
 
-use Testcontainers\Container\PostgresContainer;
+use Testcontainers\Modules\PostgresContainer;
 
 $container = PostgresContainer::make('15.0', 'password');
 $container->withPostgresDatabase('database');
@@ -123,7 +123,7 @@ $pdo = new \PDO(
 
 ```php
 
-use Testcontainers\Container\RedisContainer;
+use Testcontainers\Modules\RedisContainer;
 
 $container = RedisContainer::make('6.0');
 
@@ -139,7 +139,7 @@ $redis->connect($container->getAddress());
 
 ```php
 
-use Testcontainers\Container\OpenSearchContainer;
+use Testcontainers\Modules\OpenSearchContainer;
 
 $container = OpenSearchContainer::make('2');
 $container->disableSecurityPlugin();
@@ -166,7 +166,7 @@ use Doctrine\Bundle\DoctrineBundle\ConnectionFactory;
 use Doctrine\Common\EventManager;
 use Doctrine\DBAL\Configuration;
 use Doctrine\DBAL\Tools\DsnParser;
-use Testcontainers\Container\PostgresContainer;
+use Testcontainers\Modules\PostgresContainer;
 
 class TestConnectionFactory extends ConnectionFactory
 {

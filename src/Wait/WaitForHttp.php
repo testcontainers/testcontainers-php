@@ -7,7 +7,7 @@ namespace Testcontainers\Wait;
 use Docker\Docker;
 use Testcontainers\Exception\ContainerNotReadyException;
 
-class WaitForHttp implements WaitInterface
+class WaitForHttp implements WaitStrategy
 {
     public const METHOD_GET = 'GET';
     public const METHOD_POST = 'POST';

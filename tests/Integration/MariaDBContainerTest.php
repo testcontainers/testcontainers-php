@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Testcontainers\Tests\Integration;
 
-use Testcontainers\Container\MariaDBContainer;
+use Testcontainers\Modules\MariaDBContainer;
 
 class MariaDBContainerTest extends ContainerTestCase
 {
@@ -19,7 +19,11 @@ class MariaDBContainerTest extends ContainerTestCase
     public function testMariaDBContainer(): void
     {
         $pdo = new \PDO(
-            sprintf('mysql:host=%s;port=3306', self::$container->getAddress()),
+            sprintf(
+                'mysql:host=%s;port=%d',
+                self::$container->getHost(),
+                self::$container->getFirstMappedPort()
+            ),
             'bar',
             'baz',
         );

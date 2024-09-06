@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Testcontainers\Wait;
 
-use Docker\API\Runtime\Client\Client;
+use Testcontainers\Container\StartedTestContainer;
 use Testcontainers\Exception\ContainerWaitingTimeoutException;
 
 /**
  * Uses $timout and $pollInterval in milliseconds to set the parameters for waiting.
  */
-class WaitForLog extends BaseWait
+class WaitForLog extends BaseWaitStrategy
 {
     public function __construct(
         protected string $message,
@@ -21,7 +21,7 @@ class WaitForLog extends BaseWait
         parent::__construct($timeout, $pollInterval);
     }
 
-    public function wait(string $id): void
+    public function wait(StartedTestContainer $container): void
     {
         $startTime = microtime(true) * 1000;
 
@@ -29,15 +29,10 @@ class WaitForLog extends BaseWait
             $elapsedTime = (microtime(true) * 1000) - $startTime;
 
             if ($elapsedTime > $this->timeout) {
-                throw new ContainerWaitingTimeoutException($id);
+                throw new ContainerWaitingTimeoutException($container->getId());
             }
 
-            $output = $this->dockerClient
-                ->containerLogs($id, ['stdout' => true, 'stderr' => true], Client::FETCH_RESPONSE)
-                ?->getBody()
-                ->getContents() ?? '';
-
-            $output = preg_replace('/[\x00-\x1F\x7F]/u', '', mb_convert_encoding($output, 'UTF-8', 'UTF-8')) ?? '';
+            $output = $container->logs();
 
             if ($this->enableRegex) {
                 if (preg_match($this->message, $output)) {

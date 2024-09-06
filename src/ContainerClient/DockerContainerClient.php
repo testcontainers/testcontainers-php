@@ -1,10 +1,10 @@
 <?php
 
-namespace Testcontainers\ContainerRuntime;
+namespace Testcontainers\ContainerClient;
 
 use Docker\Docker as DockerClient;
 
-class ContainerRuntimeClient
+class DockerContainerClient
 {
     /**
      * @var DockerClient|null Singleton instance of DockerClient

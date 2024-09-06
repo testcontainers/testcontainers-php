@@ -4,39 +4,28 @@ declare(strict_types=1);
 
 namespace Testcontainers\Container;
 
-use Docker\API\Client;
 use Docker\API\Exception\ContainerCreateNotFoundException;
 use Docker\API\Model\ContainersCreatePostBody;
-use Docker\API\Model\ContainersIdExecPostBody;
 use Docker\API\Model\HealthConfig;
 use Docker\API\Model\HostConfig;
 use Docker\API\Model\Mount;
 use Docker\API\Model\PortBinding;
 use Docker\Docker;
-use Psr\Http\Message\ResponseInterface;
-use Testcontainers\ContainerRuntime\ContainerRuntimeClient;
-use Testcontainers\Wait\WaitForContainerRunning;
-use Testcontainers\Wait\WaitInterface;
+use InvalidArgumentException;
+use Testcontainers\ContainerClient\DockerContainerClient;
+use Testcontainers\Utils\PortGenerator\RandomUniquePortGenerator;
+use Testcontainers\Wait\WaitForContainer;
+use Testcontainers\Wait\WaitStrategy;
 
-/**
- * @phpstan-type ContainerInspectSingleNetwork array<int, array{'NetworkSettings': array{'IPAddress': string}}>
- * @phpstan-type ContainerInspectMultipleNetworks array<int, array{'NetworkSettings': array{'Networks': array<string, array{'IPAddress': string}>}}>
- * @phpstan-type ContainerInspect ContainerInspectSingleNetwork|ContainerInspectMultipleNetworks
- * @phpstan-type DockerNetwork array{CreatedAt: string, Driver: string, ID: string, IPv6: string, Internal: string, Labels: string, Name: string, Scope: string}
- */
-class GenericContainer
+class GenericContainer implements TestContainer
 {
     protected Docker $dockerClient;
 
-    protected ContainersCreatePostBody $containerConfig;
-
     protected string $image;
-
-    protected string $containerName;
 
     protected string $id;
 
-    /** @var array<string> */
+    /** @var list<string> */
     protected array $command = [];
 
     protected ?string $entryPoint = null;
@@ -48,7 +37,7 @@ class GenericContainer
     */
     protected array $env = [];
 
-    protected WaitInterface $wait;
+    protected WaitStrategy $waitStrategy;
 
     protected bool $isPrivileged = false;
     protected ?string $networkName = null;
@@ -64,16 +53,7 @@ class GenericContainer
     public function __construct(string $image)
     {
         $this->image = $image;
-        $this->dockerClient = ContainerRuntimeClient::getDockerClient();
-    }
-
-    /**
-     * @deprecated Use constructor instead
-     * Left for backward compatibility
-     */
-    public static function make(string $image): self
-    {
-        return new GenericContainer($image);
+        $this->dockerClient = DockerContainerClient::getDockerClient();
     }
 
     public function getId(): string
@@ -81,58 +61,56 @@ class GenericContainer
         return $this->id;
     }
 
-    public function withCommand(array $command): self
+    /**
+     * @param list<string> $command
+     */
+    public function withCommand(array $command): static
     {
         $this->command = $command;
+
         return $this;
     }
 
-    public function exec(array $command): string
-    {
-        $execConfig = (new ContainersIdExecPostBody())
-            ->setCmd($command)
-            ->setAttachStdout(true)
-            ->setAttachStderr(true);
-
-        // Create and start the exec command
-        $exec = $this->dockerClient->containerExec($this->id, $execConfig);
-        $contents = $this->dockerClient
-            ->execStart($exec->getId(), null, Client::FETCH_RESPONSE)
-            ?->getBody()
-            ->getContents() ?? '';
-
-        return preg_replace('/[\x00-\x1F\x7F]/u', '', $contents);
-    }
-
-    public function withEntryPoint(string $entryPoint): self
+    public function withEntryPoint(string $entryPoint): static
     {
         $this->entryPoint = $entryPoint;
 
         return $this;
     }
 
-    public function withEnvironment(string $name, string $value): self
+    /**
+     * To support temporarily backwards compatibility, the method supports two formats:
+     * 1. A single key-value pair (deprecated): $object->withEnvironment('key', 'value');
+     * 2. An array of key-value pairs: $object->withEnvironment(['key1' => 'value1', 'key2' => 'value2']);
+     *
+     * @param string | array<string, string> $env An array of environment variables or the name of a single variable.
+     * @param string|null $value The value of the environment variable if a single variable is passed.
+     * @return static Returns itself for chaining purposes.
+     */
+    public function withEnvironment(string | array $env, ?string $value = null): static
     {
-        $this->env[$name] = $value;
+        if (is_array($env)) {
+            foreach ($env as $key => $val) {
+                $this->env[$key] = $val;
+            }
+        } else {
+            if ($value === null) {
+                throw new InvalidArgumentException("Value cannot be null when setting a single environment variable.");
+            }
+            $this->env[$env] = $value;
+        }
 
         return $this;
     }
 
-    public function withImage(string $image): self
+    public function withWait(WaitStrategy $waitStrategy): static
     {
-        $this->image = $image;
+        $this->waitStrategy = $waitStrategy;
 
         return $this;
     }
 
-    public function withWait(WaitInterface $wait): self
-    {
-        $this->wait = $wait;
-
-        return $this;
-    }
-
-    public function withHealthCheckCommand(string $command, int $healthCheckIntervalInMS = 1000): self
+    public function withHealthCheckCommand(string $command, int $healthCheckIntervalInMS = 1000): static
     {
         $this->healthConfig = new HealthConfig([
             'Test' => ['CMD', $command],
@@ -142,7 +120,7 @@ class GenericContainer
         return $this;
     }
 
-    public function withMount(string $localPath, string $containerPath): self
+    public function withMount(string $localPath, string $containerPath): static
     {
         $this->mounts[] = new Mount(['type' => 'bind', 'source' => $localPath, 'target' => $containerPath]);
 
@@ -150,25 +128,14 @@ class GenericContainer
     }
 
     /**
-     * @deprecated Use `withExposedPorts` instead
-     */
-    public function withPort(string $localPort, string $containerPort): self
-    {
-        return $this->withExposedPorts($containerPort);
-    }
-
-    /**
-     * @psalm-param string|int|array<string|int> $port
-     */
-    /**
      * Add ports to be exposed by the Docker container.
      * This method accepts multiple inputs: single port, multiple ports, or ports with specific protocols
      * to attempt to align with other language implementations.
      *
      * @psalm-param int|string|array<int|string> $ports One or more ports to expose.
-     * @return self Fluent interface for chaining.
+     * @return static Fluent interface for chaining.
      */
-    public function withExposedPorts(...$ports): self
+    public function withExposedPorts(...$ports): static
     {
         foreach ($ports as $port) {
             if (is_array($port)) {
@@ -207,45 +174,50 @@ class GenericContainer
         return $port;
     }
 
-    public function withPrivileged(bool $privileged = true): self
+    public function withPrivilegedMode(bool $privileged = true): static
     {
         $this->isPrivileged = $privileged;
 
         return $this;
     }
 
-    public function withNetwork(string $networkName): self
+    //TODO: not yet implemented
+    public function withNetwork(string $networkName): static
     {
         $this->networkName = $networkName;
 
         return $this;
     }
 
-    public function stop(): self
-    {
-        $this->dockerClient->containerStop($this->id);
-
-        return $this;
-    }
-
-    public function start(): self
+    //TODO: needs refactoring
+    public function start(): StartedGenericContainer
     {
         try {
             $containerCreatePostBody = new ContainersCreatePostBody();
-            //setup only if we need to expose ports
+            //handle withExposedPorts
             if(!empty($this->exposedPorts)) {
+                $portGenerator = new RandomUniquePortGenerator();
                 $portMap = new \ArrayObject();
 
                 foreach ($this->exposedPorts as $port) {
                     $portBinding = new PortBinding();
-                    $portBinding->setHostPort(explode('/', $port)[0]);
+                    $portBinding->setHostPort((string) $portGenerator->generatePort());
                     $portBinding->setHostIp('0.0.0.0');
                     $portMap[$port] = [$portBinding];
                 }
 
                 $hostConfig = new HostConfig();
                 $hostConfig->setPortBindings($portMap);
+                //handle withPrivilegedMode
+                if($this->isPrivileged) {
+                    $hostConfig->setPrivileged($this->isPrivileged);
+                }
                 $containerCreatePostBody->setHostConfig($hostConfig);
+            }
+            //handle withPrivilegedMode
+            if($this->isPrivileged) {
+                $hostConfig = new HostConfig();
+                $hostConfig->setPrivileged($this->isPrivileged);
             }
             $containerCreatePostBody->setImage($this->image);
             $containerCreatePostBody->setCmd($this->command);
@@ -267,96 +239,13 @@ class GenericContainer
 
         $this->dockerClient->containerStart($this->id);
 
-        if(!isset($this->wait)) {
-            $this->withWait(new WaitForContainerRunning());
+        if(!isset($this->waitStrategy)) {
+            $this->withWait(new WaitForContainer());
         }
 
-        $this->wait->wait($this->id);
+        $startedContainer = new StartedGenericContainer($this->id);
+        $this->waitStrategy->wait($startedContainer);
 
-        return $this;
-    }
-
-    public function restart(): self
-    {
-        $this->dockerClient->containerRestart($this->id);
-
-        return $this;
-    }
-
-    public function remove(): self
-    {
-        $this->dockerClient->containerStop($this->id);
-        $this->dockerClient->containerDelete($this->id);
-
-        return $this;
-    }
-
-    public function kill(): self
-    {
-        $this->dockerClient->containerKill($this->id);
-
-        return $this;
-    }
-
-    /**
-     * @deprecated Use `start` instead
-     * Left for backward compatibility
-     */
-    public function run(): self
-    {
-        return $this->start();
-    }
-
-    /**
-     * @param array<string> $commandAsArray
-     */
-    public function execute(array $commandAsArray): ResponseInterface
-    {
-        $command = new ContainersIdExecPostBody();
-        $command->setCmd($commandAsArray);
-        return $this->dockerClient->containerExec($this->id, $command);
-    }
-
-    public function logs(): string
-    {
-        return $this->dockerClient->containerLogs($this->id)?->getBody()?->getContents() ?? '';
-    }
-
-    public function getAddress(): string
-    {
-        $inspection = $this->inspect();
-        return $inspection['gateway'];
-        //        foreach ($containerNetworks as $network) {
-        //            var_dump($network->getNetworkID(), $this->id, $network->getIPAddress());
-        //            if($network->getNetworkID() === $this->id) {
-        //                $containerAddress = $network->getIpAddress();
-        //                break;
-        //            }
-        //        }
-        //        return $containerAddress;
-    }
-
-    /**
-     * @return array{gateway: string, ports: array<string, int>}
-     */
-    public function inspect(): array
-    {
-        $response = $this->dockerClient->containerInspect($this->id);
-        $settings = $response->getNetworkSettings();
-        //var_dump($settings);
-
-        $ports = [];
-        foreach ($settings->getPorts() as $port => $value) {
-            if ($value === null) {
-                continue;
-            }
-
-            $ports[$port] = (int) $value[0]->getHostPort();
-        }
-
-        return [
-            'gateway' => $settings->getGateway(),
-            'ports' => $ports,
-        ];
+        return $startedContainer;
     }
 }

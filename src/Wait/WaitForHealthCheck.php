@@ -5,25 +5,18 @@ declare(strict_types=1);
 namespace Testcontainers\Wait;
 
 use Docker\Docker;
-use Docker\DockerClientFactory;
 use Http\Client\Socket\Exception\TimeoutException;
-use Testcontainers\ContainerRuntime\ContainerRuntimeClient;
+use Testcontainers\Container\StartedTestContainer;
 use Testcontainers\Exception\ContainerNotReadyException;
 
-class WaitForHealthCheck implements WaitInterface
+class WaitForHealthCheck extends BaseWaitStrategy
 {
-    protected Docker $dockerClient;
-    protected int $timeout;
-    protected int $pollInterval;
-
-    public function __construct(int $timeout = 5000, int $pollInterval = 1000)
+    public function __construct(protected int $timeout = 5000, protected int $pollInterval = 1000)
     {
-        $this->dockerClient = ContainerRuntimeClient::getDockerClient();
-        $this->timeout = $timeout;
-        $this->pollInterval = $pollInterval;
+        parent::__construct($timeout, $pollInterval);
     }
 
-    public function wait(string $id): void
+    public function wait(StartedTestContainer $container): void
     {
         $startTime = microtime(true) * 1000;
 
@@ -34,10 +27,11 @@ class WaitForHealthCheck implements WaitInterface
                 throw new TimeoutException(sprintf("Health check not healthy after %d ms", $this->timeout));
             }
 
-            $containerInspect = $this->dockerClient->containerInspect($id, [], Docker::FETCH_RESPONSE);
+            /** @var \Psr\Http\Message\ResponseInterface | null $containerInspect */
+            $containerInspect = $container->getClient()->containerInspect($container->getId(), [], Docker::FETCH_RESPONSE);
             //$containerStatus = $containerInspect?->getArrayCopy() ?? null;
             var_dump($containerInspect->getBody()->getContents());
-            $containerStatus='';
+            $containerStatus = '';
             if ($containerStatus === 'healthy') {
                 return;
             }

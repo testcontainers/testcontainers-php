@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Testcontainers\Tests\Integration;
 
-use Testcontainers\Container\PostgresContainer;
+use Testcontainers\Modules\PostgresContainer;
 
 class PostgreSQLContainerTest extends ContainerTestCase
 {
@@ -19,7 +19,11 @@ class PostgreSQLContainerTest extends ContainerTestCase
     public function testPostgreSQLContainer(): void
     {
         $pdo = new \PDO(
-            'pgsql:host=127.0.0.1;port=5432;dbname=foo',
+            sprintf(
+                'pgsql:host=%s;port=%d;dbname=foo',
+                self::$container->getHost(),
+                self::$container->getFirstMappedPort()
+            ),
             'bar',
             'test',
         );

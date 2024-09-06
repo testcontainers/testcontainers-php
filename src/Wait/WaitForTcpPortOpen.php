@@ -9,7 +9,7 @@ use JsonException;
 use RuntimeException;
 use Testcontainers\Exception\ContainerNotReadyException;
 
-final class WaitForTcpPortOpen implements WaitInterface
+final class WaitForTcpPortOpen implements WaitStrategy
 {
     private Docker $dockerClient;
 

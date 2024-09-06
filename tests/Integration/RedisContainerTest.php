@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Testcontainers\Tests\Integration;
 
 use Predis\Client;
-use Testcontainers\Container\RedisContainer;
+use Testcontainers\Modules\RedisContainer;
 
 class RedisContainerTest extends ContainerTestCase
 {
@@ -18,8 +18,8 @@ class RedisContainerTest extends ContainerTestCase
     public function testRedisContainer(): void
     {
         $redisClient = new Client([
-            'host' => 'localhost',
-            'port' => 6379,
+            'host' => self::$container->getHost(),
+            'port' => self::$container->getFirstMappedPort(),
         ]);
 
         $redisClient->ping();
