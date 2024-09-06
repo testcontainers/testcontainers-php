@@ -26,27 +26,15 @@ class OpenSearchContainer extends Container
         ));
     }
 
-    /**
-     *  @deprecated Use constructor instead
-     *  Left for backward compatibility
-     */
     public static function make(string $version = 'latest'): self
     {
         return new self($version);
     }
 
-    public function withDisabledSecurityPlugin(): self
+    public function disableSecurityPlugin(): self
     {
         $this->withEnvironment('plugins.security.disabled', 'true');
 
         return $this;
-    }
-
-    /**
-     * @deprecated Use withDisabledSecurityPlugin instead
-     */
-    public function disableSecurityPlugin(): self
-    {
-        return $this->withDisabledSecurityPlugin();
     }
 }

@@ -37,12 +37,4 @@ class OpenSearchContainer extends GenericContainer
 
         return $this;
     }
-
-    /**
-     * @deprecated Use withDisabledSecurityPlugin instead
-     */
-    public function disableSecurityPlugin(): self
-    {
-        return $this->withDisabledSecurityPlugin();
-    }
 }

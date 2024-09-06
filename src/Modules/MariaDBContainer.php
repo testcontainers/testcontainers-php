@@ -17,15 +17,6 @@ class MariaDBContainer extends GenericContainer
         $this->withEnvironment('MARIADB_ROOT_PASSWORD', $mysqlRootPassword);
     }
 
-    /**
-     *  @deprecated Use constructor instead
-     *  Left for backward compatibility
-     */
-    public static function make(string $version = 'latest', string $mysqlRootPassword = 'root'): self
-    {
-        return new self($version, $mysqlRootPassword);
-    }
-
     public function withMariaDBUser(string $username, string $password): self
     {
         $this->withEnvironment('MARIADB_USER', $username);

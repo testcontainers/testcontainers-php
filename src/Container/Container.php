@@ -14,6 +14,7 @@ class Container extends GenericContainer
     protected ?StartedTestContainer $startedContainer = null;
 
     protected ?StoppedTestContainer $stoppedContainer = null;
+
     public static function make(string $image): self
     {
         return new self($image);
@@ -61,7 +62,7 @@ class Container extends GenericContainer
      */
     public function execute(array $commandAsArray): string
     {
-        if($this->startedContainer === null) {
+        if ($this->startedContainer === null) {
             throw new \RuntimeException('Container is not started');
         }
 
@@ -73,7 +74,7 @@ class Container extends GenericContainer
      */
     public function logs(): string
     {
-        if($this->startedContainer === null) {
+        if ($this->startedContainer === null) {
             throw new \RuntimeException('Container is not started');
         }
 
@@ -85,7 +86,7 @@ class Container extends GenericContainer
      */
     public function getAddress(): string
     {
-        if($this->startedContainer === null) {
+        if ($this->startedContainer === null) {
             throw new \RuntimeException('Container is not started');
         }
 
@@ -97,7 +98,7 @@ class Container extends GenericContainer
      */
     public function getPort(): int
     {
-        if($this->startedContainer === null) {
+        if ($this->startedContainer === null) {
             throw new \RuntimeException('Container is not started');
         }
 
@@ -119,7 +120,7 @@ class Container extends GenericContainer
      */
     public function stop(): self
     {
-        if($this->startedContainer === null) {
+        if ($this->startedContainer === null) {
             throw new \RuntimeException('Container is not started');
         }
 
@@ -133,7 +134,7 @@ class Container extends GenericContainer
      */
     public function restart(): self
     {
-        if($this->startedContainer === null) {
+        if ($this->startedContainer === null) {
             throw new \RuntimeException('Container is not started');
         }
 
@@ -148,7 +149,7 @@ class Container extends GenericContainer
      */
     public function remove(): self
     {
-        if($this->startedContainer === null) {
+        if ($this->startedContainer === null) {
             throw new \RuntimeException('Container is not started');
         }
 

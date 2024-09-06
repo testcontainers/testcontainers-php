@@ -21,10 +21,6 @@ class MariaDBContainer extends Container
         $this->withEnvironment('MARIADB_ROOT_PASSWORD', $mysqlRootPassword);
     }
 
-    /**
-     *  @deprecated Use constructor instead
-     *  Left for backward compatibility
-     */
     public static function make(string $version = 'latest', string $mysqlRootPassword = 'root'): self
     {
         return new self($version, $mysqlRootPassword);

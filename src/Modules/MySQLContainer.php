@@ -17,15 +17,6 @@ class MySQLContainer extends GenericContainer
         $this->withWait(new WaitForLog('ready for connections'));
     }
 
-    /**
-     *  @deprecated Use constructor instead
-     *  Left for backward compatibility
-     */
-    public static function make(string $version = 'latest', string $mysqlRootPassword = 'root'): self
-    {
-        return new self($version, $mysqlRootPassword);
-    }
-
     public function withMySQLUser(string $username, string $password): self
     {
         $this->withEnvironment('MYSQL_USER', $username);
