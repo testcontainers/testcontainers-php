@@ -110,11 +110,15 @@ class StartedGenericContainer implements StartedTestContainer
     //TODO: not ready yet
     public function getFirstMappedPort(): int
     {
+        var_dump($this->dockerClient);die(123);
+        /** @var \Docker\API\Model\ContainersIdJsonGetResponse200 | null $containerInspectResponse */
         $containerInspectResponse =  $this->dockerClient->containerInspect($this->id);
         $settings = $containerInspectResponse->getNetworkSettings();
 
         $ports = (array)$settings->getPorts();
         $port = array_key_first($ports);
+
+        var_dump($ports, $port, (int)$ports[$port][0]->getHostPort());
 
         return (int) $ports[$port][0]->getHostPort();
     }

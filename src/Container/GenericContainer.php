@@ -195,7 +195,7 @@ class GenericContainer implements TestContainer
         try {
             $containerCreatePostBody = new ContainersCreatePostBody();
             //handle withExposedPorts
-            if(!empty($this->exposedPorts)) {
+            if (!empty($this->exposedPorts)) {
                 $portGenerator = new RandomUniquePortGenerator();
                 $portMap = new \ArrayObject();
 
@@ -209,13 +209,13 @@ class GenericContainer implements TestContainer
                 $hostConfig = new HostConfig();
                 $hostConfig->setPortBindings($portMap);
                 //handle withPrivilegedMode
-                if($this->isPrivileged) {
+                if ($this->isPrivileged) {
                     $hostConfig->setPrivileged($this->isPrivileged);
                 }
                 $containerCreatePostBody->setHostConfig($hostConfig);
             }
             //handle withPrivilegedMode
-            if($this->isPrivileged) {
+            if ($this->isPrivileged) {
                 $hostConfig = new HostConfig();
                 $hostConfig->setPrivileged($this->isPrivileged);
             }
@@ -239,7 +239,7 @@ class GenericContainer implements TestContainer
 
         $this->dockerClient->containerStart($this->id);
 
-        if(!isset($this->waitStrategy)) {
+        if (!isset($this->waitStrategy)) {
             $this->withWait(new WaitForContainer());
         }
 
