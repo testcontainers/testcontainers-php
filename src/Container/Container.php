@@ -9,7 +9,7 @@ namespace Testcontainers\Container;
  * @deprecated Use GenericContainer instead.
  * TODO: Remove in next major release.
  */
-final class Container extends GenericContainer
+class Container extends GenericContainer
 {
     protected ?StartedTestContainer $startedContainer = null;
 

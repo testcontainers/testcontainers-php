@@ -19,10 +19,13 @@ composer req --dev testcontainers/testcontainers
 
 use Testcontainers\Container\GenericContainer;
 
-$container = new GenericContainer::make('nginx:alpine');
+$container = new GenericContainer('nginx:alpine');
 
 // set an environment variable
-$container->withEnvironment('name', 'var');
+$container->withEnvironment([
+    'key1' => 'val1',
+    'key2' => 'val2'
+]);
 
 // enable health check for an container
 $container->withHealthCheckCommand('curl --fail localhost');
@@ -35,10 +38,18 @@ Normally you have to wait until the Container is ready. so for this you can defi
 
 ```php
 
+use Testcontainers\Container\GenericContainer;
+use Testcontainers\Wait\WaitForExec;
+use Testcontainers\Wait\WaitForLog;
+use Testcontainers\Wait\WaitForHttp;
+use Testcontainers\Wait\WaitForHealthCheck;
+
+$container = new GenericContainer('nginx:alpine');
+
 // Run mysqladmin ping until the command returns exit code 0
 $container->withWait(new WaitForExec(['mysqladmin', 'ping', '-h', '127.0.0.1']));
 
-$container->withWait(new WaitForExec(['mysqladmin', 'ping', '-h', '127.0.0.1']), function(Process $process) {
+$container->withWait(new WaitForExec(['mysqladmin', 'ping', '-h', '127.0.0.1']), function($exitCode, $contents) {
     // throw exception if process result is bad
 });
 
@@ -60,14 +71,17 @@ $container->withWait(new WaitForHealthCheck());
 
 use Testcontainers\Modules\MySQLContainer;
 
-$container = MySQLContainer::make('8.0');
-$container->withMySQLDatabase('foo');
-$container->withMySQLUser('bar', 'baz');
-
-$container->run();
+$container = (new MySQLContainer('8.0'))
+    ->withMySQLDatabase('foo')
+    ->withMySQLUser('bar', 'baz')
+    ->start();
 
 $pdo = new \PDO(
-    sprintf('mysql:host=%s;port=3306', $container->getAddress()),
+    sprintf(
+        'mysql:host=%s;port=%d',
+        $container->getHost(),
+        $container->getFirstMappedPort()
+    ),
     'bar',
     'baz',
 );
@@ -82,14 +96,17 @@ $pdo = new \PDO(
 
 use Testcontainers\Modules\MariaDBContainer;
 
-$container = MariaDBContainer::make('8.0');
-$container->withMariaDBDatabase('foo');
-$container->withMariaDBUser('bar', 'baz');
-
-$container->run();
+$container = $container = (new MariaDBContainer())
+    ->withMariaDBDatabase('foo')
+    ->withMariaDBUser('bar', 'baz')
+    ->start();
 
 $pdo = new \PDO(
-    sprintf('mysql:host=%s;port=3306', $container->getAddress()),
+    sprintf(
+        'mysql:host=%s;port=%d',
+        $container->getHost(),
+        $container->getFirstMappedPort()
+    ),
     'bar',
     'baz',
 );
@@ -104,16 +121,19 @@ $pdo = new \PDO(
 
 use Testcontainers\Modules\PostgresContainer;
 
-$container = PostgresContainer::make('15.0', 'password');
-$container->withPostgresDatabase('database');
-$container->withPostgresUser('username');
-
-$container->run();
+$container = (new PostgresContainer())
+    ->withPostgresUser('bar')
+    ->withPostgresDatabase('foo')
+    ->start();
 
 $pdo = new \PDO(
-    sprintf('pgsql:host=%s;port=5432;dbname=database', $container->getAddress()),
-    'username',
-    'password',
+    sprintf(
+        'pgsql:host=%s;port=%d;dbname=foo',
+        self::$container->getHost(),
+        self::$container->getFirstMappedPort()
+    ),
+    'bar',
+    'test',
 );
 
 // Do something with pdo
@@ -125,12 +145,11 @@ $pdo = new \PDO(
 
 use Testcontainers\Modules\RedisContainer;
 
-$container = RedisContainer::make('6.0');
-
-$container->run();
+$container = (new RedisContainer())
+    ->start();
 
 $redis = new \Redis();
-$redis->connect($container->getAddress());
+$redis->connect($container->getHost(), $container->getFirstMappedPort());
 
 // Do something with redis
 ```
@@ -141,10 +160,9 @@ $redis->connect($container->getAddress());
 
 use Testcontainers\Modules\OpenSearchContainer;
 
-$container = OpenSearchContainer::make('2');
-$container->disableSecurityPlugin();
-
-$container->run();
+$container = (new OpenSearchContainer())
+    ->withDisabledSecurityPlugin()
+    ->start();
 
 // Do something with opensearch
 ```
@@ -175,11 +193,12 @@ class TestConnectionFactory extends ConnectionFactory
     public function __construct(array $typesConfig, ?DsnParser $dsnParser = null)
     {
         if (!$this::$testDsn) {
-            $psql = PostgresContainer::make('14.0', 'password');
-            $psql->withPostgresDatabase('database');
-            $psql->withPostgresUser('user');
-            $psql->run();
-            $this::$testDsn = sprintf('postgresql://user:password@%s:5432/database?serverVersion=14&charset=utf8', $psql->getAddress());
+            $psql = (new PostgresContainer())
+                ->withPostgresUser('user')
+                ->withPostgresPassword('password')
+                ->withPostgresDatabase('database')
+                ->start();
+            $this::$testDsn = sprintf('postgresql://user:password@%s:%d/database?serverVersion=14&charset=utf8', $psql->getAddress(), $psql->getFirstMappedPort());
         }
         parent::__construct($typesConfig, $dsnParser);
     }

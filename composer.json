@@ -14,12 +14,12 @@
         }
     ],
     "require": {
+        "ext-curl": "*",
         "php": ">= 8.1",
         "beluga-php/docker-php": "^1.45",
         "symfony/http-client": "^7.1"
     },
     "require-dev": {
-        "ext-curl": "*",
         "ext-pdo": "*",
         "phpunit/phpunit": "^9.5",
         "brianium/paratest": "^6.6",

@@ -30,7 +30,6 @@ class WaitForHealthCheck extends BaseWaitStrategy
             /** @var \Psr\Http\Message\ResponseInterface | null $containerInspect */
             $containerInspect = $container->getClient()->containerInspect($container->getId(), [], Docker::FETCH_RESPONSE);
             //$containerStatus = $containerInspect?->getArrayCopy() ?? null;
-            var_dump($containerInspect->getBody()->getContents());
             $containerStatus = '';
             if ($containerStatus === 'healthy') {
                 return;
