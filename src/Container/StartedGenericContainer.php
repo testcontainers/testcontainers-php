@@ -6,6 +6,7 @@ namespace Testcontainers\Container;
 
 use Docker\API\Client;
 use Docker\API\Model\ContainersIdExecPostBody;
+use Docker\API\Model\ContainersIdJsonGetResponse200;
 use Docker\API\Model\IdResponse;
 use Docker\API\Runtime\Client\Client as DockerRuntimeClient;
 use Docker\Docker;
@@ -110,15 +111,12 @@ class StartedGenericContainer implements StartedTestContainer
     //TODO: not ready yet
     public function getFirstMappedPort(): int
     {
-        var_dump($this->dockerClient);die(123);
-        /** @var \Docker\API\Model\ContainersIdJsonGetResponse200 | null $containerInspectResponse */
+        /** @var ContainersIdJsonGetResponse200 | null $containerInspectResponse */
         $containerInspectResponse =  $this->dockerClient->containerInspect($this->id);
         $settings = $containerInspectResponse->getNetworkSettings();
 
         $ports = (array)$settings->getPorts();
         $port = array_key_first($ports);
-
-        var_dump($ports, $port, (int)$ports[$port][0]->getHostPort());
 
         return (int) $ports[$port][0]->getHostPort();
     }

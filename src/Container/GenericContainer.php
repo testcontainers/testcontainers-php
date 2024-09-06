@@ -11,6 +11,7 @@ use Docker\API\Model\HostConfig;
 use Docker\API\Model\Mount;
 use Docker\API\Model\PortBinding;
 use Docker\Docker;
+use Docker\Stream\CreateImageStream;
 use InvalidArgumentException;
 use Testcontainers\ContainerClient\DockerContainerClient;
 use Testcontainers\Utils\PortGenerator\RandomUniquePortGenerator;
@@ -230,6 +231,7 @@ class GenericContainer implements TestContainer
             $containerCreateResponse = $this->dockerClient->containerCreate($containerCreatePostBody);
             $this->id = $containerCreateResponse?->getId() ?? '';
         } catch (ContainerCreateNotFoundException) {
+            /** @var CreateImageStream $imageCreateResponse */
             $this->dockerClient->imageCreate(null, [
                 'fromImage' => explode(':', $this->image)[0],
                 'tag' => explode(':', $this->image)[1] ?? 'latest',
