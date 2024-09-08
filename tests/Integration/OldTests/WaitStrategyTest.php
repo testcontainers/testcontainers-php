@@ -54,104 +54,104 @@ class WaitStrategyTest extends TestCase
         $this->assertNotEmpty($version);
     }
 
-        public function testWaitForLog(): void
-        {
-            $container = Container::make('redis:6.2.5')
-                ->withWait(new WaitForLog('Ready to accept connections'));
+    public function testWaitForLog(): void
+    {
+        $container = Container::make('redis:6.2.5')
+            ->withWait(new WaitForLog('Ready to accept connections'));
 
-            $container->run();
+        $container->run();
 
-            $redis = new Client([
-                'scheme' => 'tcp',
-                'host'   => $container->getAddress(),
-                'port'   => 6379,
-            ]);
+        $redis = new Client([
+            'scheme' => 'tcp',
+            'host'   => $container->getAddress(),
+            'port'   => 6379,
+        ]);
 
-            $redis->set('foo', 'bar');
+        $redis->set('foo', 'bar');
 
-            $this->assertEquals('bar', $redis->get('foo'));
+        $this->assertEquals('bar', $redis->get('foo'));
 
-            $container->stop();
+        $container->stop();
 
-            $this->expectException(ConnectionException::class);
+        $this->expectException(ConnectionException::class);
 
-            $redis->get('foo');
+        $redis->get('foo');
 
-            $container->remove();
+        $container->remove();
+    }
+
+    public function testWaitForHTTP(): void
+    {
+        $container = Container::make('nginx:alpine')
+            ->withWait(WaitForHttp::make(80));
+
+        $container->run();
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, sprintf('http://%s:%d', $container->getAddress(), 80));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+        $response = (string) curl_exec($ch);
+
+        curl_close($ch);
+
+        $this->assertNotEmpty($response);
+    }
+
+    /**
+     * @dataProvider provideWaitForTcpPortOpen
+     */
+    public function testWaitForTcpPortOpen(bool $wait): void
+    {
+        $container = Container::make('nginx:alpine');
+
+        if ($wait) {
+            $container->withWait(WaitForTcpPortOpen::make(80));
         }
 
-        public function testWaitForHTTP(): void
-        {
-            $container = Container::make('nginx:alpine')
-                ->withWait(WaitForHttp::make(80));
+        $container->run();
 
-            $container->run();
-
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, sprintf('http://%s:%d', $container->getAddress(), 80));
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-
-            $response = (string) curl_exec($ch);
-
-            curl_close($ch);
-
-            $this->assertNotEmpty($response);
+        if ($wait) {
+            static::assertIsResource(fsockopen($container->getAddress(), 80), 'Failed to connect to container');
+            return;
         }
 
-        /**
-         * @dataProvider provideWaitForTcpPortOpen
-         */
-        public function testWaitForTcpPortOpen(bool $wait): void
-        {
-            $container = Container::make('nginx:alpine');
+        $containerId = $container->getId();
 
-            if ($wait) {
-                $container->withWait(WaitForTcpPortOpen::make(80));
-            }
+        $this->expectExceptionObject(new ContainerNotReadyException($containerId));
 
-            $container->run();
+        (new WaitForTcpPortOpen(8080))->wait($containerId);
+    }
 
-            if ($wait) {
-                static::assertIsResource(fsockopen($container->getAddress(), 80), 'Failed to connect to container');
-                return;
-            }
+    /**
+     * @return array<string, array<bool>>
+     */
+    public function provideWaitForTcpPortOpen(): array
+    {
+        return [
+            'Can connect to container' => [true],
+            'Cannot connect to container' => [false],
+        ];
+    }
 
-            $containerId = $container->getId();
+    public function testWaitForHealthCheck(): void
+    {
+        $container = Container::make('nginx')
+            ->withHealthCheckCommand('curl --fail http://localhost')
+            ->withWait(new WaitForHealthCheck());
 
-            $this->expectExceptionObject(new ContainerNotReadyException($containerId));
+        $container->run();
 
-            (new WaitForTcpPortOpen(8080))->wait($containerId);
-        }
+        $ch = curl_init();
 
-        /**
-         * @return array<string, array<bool>>
-         */
-        public function provideWaitForTcpPortOpen(): array
-        {
-            return [
-                'Can connect to container' => [true],
-                'Cannot connect to container' => [false],
-            ];
-        }
+        curl_setopt($ch, CURLOPT_URL, sprintf('http://%s:%d', $container->getAddress(), 80));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
-        public function testWaitForHealthCheck(): void
-        {
-            $container = Container::make('nginx')
-                ->withHealthCheckCommand('curl --fail http://localhost')
-                ->withWait(new WaitForHealthCheck());
+        $response = curl_exec($ch);
 
-            $container->run();
+        $this->assertNotEmpty($response);
+        $this->assertIsString($response);
 
-            $ch = curl_init();
-
-            curl_setopt($ch, CURLOPT_URL, sprintf('http://%s:%d', $container->getAddress(), 80));
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-
-            $response = curl_exec($ch);
-
-            $this->assertNotEmpty($response);
-            $this->assertIsString($response);
-
-            $this->assertStringContainsString('Welcome to nginx!', $response);
-        }
+        $this->assertStringContainsString('Welcome to nginx!', $response);
+    }
 }

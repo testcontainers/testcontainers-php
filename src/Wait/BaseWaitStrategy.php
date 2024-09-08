@@ -8,7 +8,6 @@ use Testcontainers\Container\StartedTestContainer;
 
 abstract class BaseWaitStrategy implements WaitStrategy
 {
-
     public function __construct(protected int $timeout = 10000, protected int $pollInterval = 500)
     {
     }

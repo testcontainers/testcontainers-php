@@ -6,10 +6,10 @@ namespace Testcontainers\Container;
 
 use Docker\API\Client;
 use Docker\API\Model\ContainersIdExecPostBody;
-use Docker\API\Model\ContainersIdJsonGetResponse200;
 use Docker\API\Model\IdResponse;
 use Docker\API\Runtime\Client\Client as DockerRuntimeClient;
 use Docker\Docker;
+use Psr\Http\Message\ResponseInterface;
 use Testcontainers\ContainerClient\DockerContainerClient;
 
 class StartedGenericContainer implements StartedTestContainer
@@ -53,7 +53,7 @@ class StartedGenericContainer implements StartedTestContainer
         /** @var IdResponse | null $exec */
         $exec = $this->dockerClient->containerExec($this->id, $execConfig);
 
-        if($exec === null || $exec->getId() === null) {
+        if ($exec === null || $exec->getId() === null) {
             throw new \RuntimeException('Failed to create exec command');
         }
 
@@ -108,17 +108,36 @@ class StartedGenericContainer implements StartedTestContainer
         return $this->inspect()->ports[$port];
     }
 
-    //TODO: not ready yet
+    /**
+     * @throws \JsonException
+     */
     public function getFirstMappedPort(): int
     {
-        /** @var ContainersIdJsonGetResponse200 | null $containerInspectResponse */
-        $containerInspectResponse =  $this->dockerClient->containerInspect($this->id);
-        $settings = $containerInspectResponse->getNetworkSettings();
+        //For some reason, containerInspect can crash when using FETCH_OBJECT option (e.g. with OpenSearch)
+        //should be checked within beluga-php/docker-php client library
+        /** @var ResponseInterface | null $containerInspectResponse */
+        $containerInspectResponse =  $this->dockerClient->containerInspect($this->id, [], Docker::FETCH_RESPONSE);
+        if ($containerInspectResponse === null) {
+            throw new \RuntimeException('Failed to inspect container');
+        }
 
-        $ports = (array)$settings->getPorts();
+        $containerInspectResponseAsArray = json_decode(
+            $containerInspectResponse->getBody()->getContents(),
+            true,
+            512,
+            JSON_THROW_ON_ERROR
+        );
+
+        /** @var array<string, array<array<string, string>>> $ports */
+        $ports = $containerInspectResponseAsArray['NetworkSettings']['Ports'] ?? [];
+
+        if ($ports === []) {
+            throw new \RuntimeException('Failed to get ports from container');
+        }
+
         $port = array_key_first($ports);
 
-        return (int) $ports[$port][0]->getHostPort();
+        return (int) $ports[$port][0]['HostPort'];
     }
 
     public function getName(): string

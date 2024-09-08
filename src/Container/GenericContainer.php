@@ -232,10 +232,12 @@ class GenericContainer implements TestContainer
             $this->id = $containerCreateResponse?->getId() ?? '';
         } catch (ContainerCreateNotFoundException) {
             /** @var CreateImageStream $imageCreateResponse */
-            $this->dockerClient->imageCreate(null, [
+            $imageCreateResponse = $this->dockerClient->imageCreate(null, [
                 'fromImage' => explode(':', $this->image)[0],
                 'tag' => explode(':', $this->image)[1] ?? 'latest',
             ]);
+            $imageCreateResponse->wait();
+
             return $this->start();
         }
 

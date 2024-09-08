@@ -7,6 +7,7 @@ namespace Testcontainers\Wait;
 use Docker\Docker;
 use Testcontainers\Exception\ContainerNotReadyException;
 
+//TODO: not ready yet
 class WaitForHttp implements WaitStrategy
 {
     public const METHOD_GET = 'GET';
@@ -61,7 +62,7 @@ class WaitForHttp implements WaitStrategy
         $containerNetworks = $this->dockerClient->containerInspect($id)->getNetworkSettings()->getNetworks();
         $containerAddress = null;
         foreach ($containerNetworks as $network) {
-            if($network->getNetworkID() === $id) {
+            if ($network->getNetworkID() === $id) {
                 $containerAddress = $network->getIpAddress();
                 break;
             }

@@ -18,6 +18,7 @@ use Testcontainers\Container\RedisContainer;
 class ContainerTest extends TestCase
 {
     //TODO: remove after check
+    //To make it work, fixed port should be first implemented
     protected function setUp(): void
     {
         $this->markTestIncomplete();

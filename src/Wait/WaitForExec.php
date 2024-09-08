@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Testcontainers\Wait;
 
 use Closure;
-use Docker\API\Model\ContainersIdExecPostBody;
 use Docker\API\Model\ExecIdJsonGetResponse200;
 use Testcontainers\Container\StartedTestContainer;
 use Testcontainers\Exception\ContainerWaitingTimeoutException;
@@ -15,8 +14,6 @@ use Testcontainers\Exception\ContainerWaitingTimeoutException;
  */
 class WaitForExec extends BaseWaitStrategy
 {
-    protected ContainersIdExecPostBody $execConfig;
-
     /**
      * @param array<string> $command
      */

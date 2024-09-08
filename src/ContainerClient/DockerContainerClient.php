@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Testcontainers\ContainerClient;
 
 use Docker\Docker as DockerClient;
@@ -11,9 +13,6 @@ class DockerContainerClient
      */
     private static ?DockerClient $dockerClient = null;
 
-    /**
-     * Private constructor to prevent creating instance outside the class.
-     */
     private function __construct()
     {
     }

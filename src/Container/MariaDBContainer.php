@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Testcontainers\Container;
 
-use Testcontainers\Wait\WaitForLog;
+use Testcontainers\Wait\WaitForExec;
 
 /**
  * Left for namespace backward compatibility
@@ -17,8 +17,12 @@ class MariaDBContainer extends Container
     {
         parent::__construct('mariadb:' . $version);
         $this->withExposedPorts(3306);
-        $this->withWait(new WaitForLog('ready for connections'));
         $this->withEnvironment('MARIADB_ROOT_PASSWORD', $mysqlRootPassword);
+        $this->withWait(new WaitForExec([
+            "mariadb-admin",
+            "ping",
+            "-h", "127.0.0.1",
+        ]));
     }
 
     public static function make(string $version = 'latest', string $mysqlRootPassword = 'root'): self

@@ -9,6 +9,7 @@ use Http\Client\Socket\Exception\TimeoutException;
 use Testcontainers\Container\StartedTestContainer;
 use Testcontainers\Exception\ContainerNotReadyException;
 
+//TODO: not ready yet
 class WaitForHealthCheck extends BaseWaitStrategy
 {
     public function __construct(protected int $timeout = 5000, protected int $pollInterval = 1000)

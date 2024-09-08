@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Testcontainers\Container;
 
-use Testcontainers\Wait\WaitForLog;
+use Testcontainers\Wait\WaitForExec;
 
 /**
  * Left for namespace backward compatibility
@@ -18,7 +18,11 @@ class MySQLContainer extends Container
         parent::__construct('mysql:' . $version);
         $this->withExposedPorts(3306);
         $this->withEnvironment('MYSQL_ROOT_PASSWORD', $mysqlRootPassword);
-        $this->withWait(new WaitForLog('ready for connections'));
+        $this->withWait(new WaitForExec([
+            "mysqladmin",
+            "ping",
+            "-h", "127.0.0.1",
+        ]));
     }
 
     public static function make(string $version = 'latest', string $mysqlRootPassword = 'root'): self
