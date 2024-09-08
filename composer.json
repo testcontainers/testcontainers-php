@@ -16,11 +16,12 @@
     "require": {
         "ext-curl": "*",
         "php": ">= 8.1",
-        "beluga-php/docker-php": "^1.45",
-        "symfony/http-client": "^7.1"
+        "beluga-php/docker-php": "^1.45"
     },
     "require-dev": {
         "ext-pdo": "*",
+        "ext-pdo_mysql": "*",
+        "ext-pdo_pgsql": "*",
         "phpunit/phpunit": "^9.5",
         "brianium/paratest": "^6.6",
         "friendsofphp/php-cs-fixer": "^3.12",
@@ -48,7 +49,7 @@
     "config": {
         "allow-plugins": {
             "phpstan/extension-installer": true,
-            "php-http/discovery": true
+            "php-http/discovery": false
         }
     }
 }
