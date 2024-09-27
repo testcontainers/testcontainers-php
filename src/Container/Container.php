@@ -21,6 +21,25 @@ class Container extends GenericContainer
     }
 
     /**
+     * @deprecated Use `withCommand` instead
+     * @param array<string> $cmd
+     */
+    public function withCmd(array $cmd): self
+    {
+        return $this->withCommand($cmd);
+    }
+
+    /**
+     * @deprecated Use `withEntrypoint` instead
+     * TODO: this is just dummy method for compatibility,
+     * the implementation with Docker Engine API should be discussed
+     */
+    public function withHostname(string $hostname): self
+    {
+        return $this;
+    }
+
+    /**
      * @deprecated Use `withPrivilegedMode` instead
      */
     public function withPrivileged(bool $privileged = true): self
