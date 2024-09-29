@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Testcontainers\Container;
 
+use Testcontainers\Utils\PortGenerator\FixedPortGenerator;
+
 /**
  * Added for backward compatibility.
  * @deprecated Use GenericContainer instead.
@@ -52,6 +54,7 @@ class Container extends GenericContainer
      */
     public function withPort(string $localPort, string $containerPort): self
     {
+        $this->withPortGenerator(new FixedPortGenerator([(int)$localPort]));
         return $this->withExposedPorts($containerPort);
     }
 

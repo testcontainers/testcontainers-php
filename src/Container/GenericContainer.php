@@ -5,16 +5,21 @@ declare(strict_types=1);
 namespace Testcontainers\Container;
 
 use Docker\API\Exception\ContainerCreateNotFoundException;
+use Docker\API\Model\ContainerCreateResponse;
 use Docker\API\Model\ContainersCreatePostBody;
+use Docker\API\Model\EndpointSettings;
 use Docker\API\Model\HealthConfig;
 use Docker\API\Model\HostConfig;
 use Docker\API\Model\Mount;
+use Docker\API\Model\NetworkingConfig;
 use Docker\API\Model\PortBinding;
 use Docker\Docker;
 use Docker\Stream\CreateImageStream;
 use InvalidArgumentException;
 use Testcontainers\ContainerClient\DockerContainerClient;
+use Testcontainers\Utils\PortGenerator\PortGenerator;
 use Testcontainers\Utils\PortGenerator\RandomUniquePortGenerator;
+use Testcontainers\Utils\PortNormalizer;
 use Testcontainers\Wait\WaitForContainer;
 use Testcontainers\Wait\WaitStrategy;
 
@@ -40,8 +45,13 @@ class GenericContainer implements TestContainer
 
     protected WaitStrategy $waitStrategy;
 
+    protected PortGenerator $portGenerator;
+
     protected bool $isPrivileged = false;
     protected ?string $networkName = null;
+
+    protected int $startAttempts = 0;
+    protected const MAX_START_ATTEMPTS = 2;
 
     /**
      * @var array<Mount>
@@ -55,6 +65,8 @@ class GenericContainer implements TestContainer
     {
         $this->image = $image;
         $this->dockerClient = DockerContainerClient::getDockerClient();
+        $this->waitStrategy = new WaitForContainer();
+        $this->portGenerator = new RandomUniquePortGenerator();
     }
 
     public function getId(): string
@@ -111,12 +123,19 @@ class GenericContainer implements TestContainer
         return $this;
     }
 
-    public function withHealthCheckCommand(string $command, int $healthCheckIntervalInMS = 1000): static
-    {
-        $this->healthConfig = new HealthConfig([
-            'Test' => ['CMD', $command],
-            'Interval' => $healthCheckIntervalInMS,
-        ]);
+    public function withHealthCheckCommand(
+        string $command,
+        int $intervalInMilliseconds = 1000,
+        int $timeoutInMilliseconds = 3000,
+        int $retries = 3,
+        int $startPeriodInMilliseconds = 0
+    ): static {
+        $this->healthConfig = new HealthConfig();
+        $this->healthConfig->setTest(['CMD-SHELL', $command]);
+        $this->healthConfig->setInterval($intervalInMilliseconds * 1_000_000);
+        $this->healthConfig->setTimeout($timeoutInMilliseconds * 1_000_000);
+        $this->healthConfig->setRetries($retries);
+        $this->healthConfig->setStartPeriod($startPeriodInMilliseconds * 1_000_000);
 
         return $this;
     }
@@ -144,35 +163,11 @@ class GenericContainer implements TestContainer
                 $this->withExposedPorts(...$port);
             } else {
                 // Handle single port entry, either string or int
-                $this->exposedPorts[] = $this->normalizePort($port);
+                $this->exposedPorts[] = PortNormalizer::normalizePort($port);
             }
         }
 
         return $this;
-    }
-
-    /**
-     * Normalize a port specification to ensure it includes a protocol.
-     * Defaults to 'tcp' if no protocol is specified.
-     *
-     * @param string|int $port Port to normalize.
-     * @return string Normalized port string.
-     *
-     * TODO: move this to a utility class
-     */
-    private function normalizePort(string|int $port): string
-    {
-        if (is_int($port)) {
-            // Direct integer ports default to tcp
-            return "{$port}/tcp";
-        }
-
-        // Check if the port specification already includes a protocol
-        if (is_string($port) && !str_contains($port, '/')) {
-            return "{$port}/tcp";
-        }
-
-        return $port;
     }
 
     public function withPrivilegedMode(bool $privileged = true): static
@@ -190,66 +185,125 @@ class GenericContainer implements TestContainer
         return $this;
     }
 
-    //TODO: needs refactoring
+    public function withPortGenerator(PortGenerator $portGenerator): static
+    {
+        $this->portGenerator = $portGenerator;
+
+        return $this;
+    }
+
     public function start(): StartedGenericContainer
     {
+        $this->startAttempts++;
+        $containerConfig = $this->createContainerConfig();
         try {
-            $containerCreatePostBody = new ContainersCreatePostBody();
-            //handle withExposedPorts
-            if (!empty($this->exposedPorts)) {
-                $portGenerator = new RandomUniquePortGenerator();
-                $portMap = new \ArrayObject();
-
-                foreach ($this->exposedPorts as $port) {
-                    $portBinding = new PortBinding();
-                    $portBinding->setHostPort((string) $portGenerator->generatePort());
-                    $portBinding->setHostIp('0.0.0.0');
-                    $portMap[$port] = [$portBinding];
-                }
-
-                $hostConfig = new HostConfig();
-                $hostConfig->setPortBindings($portMap);
-                //handle withPrivilegedMode
-                if ($this->isPrivileged) {
-                    $hostConfig->setPrivileged($this->isPrivileged);
-                }
-                $containerCreatePostBody->setHostConfig($hostConfig);
-            }
-            //handle withPrivilegedMode
-            if ($this->isPrivileged) {
-                $hostConfig = new HostConfig();
-                $hostConfig->setPrivileged($this->isPrivileged);
-            }
-            $containerCreatePostBody->setImage($this->image);
-            $containerCreatePostBody->setCmd($this->command);
-            $envs = [];
-            foreach ($this->env as $key => $value) {
-                $envs[] = $key . '=' . $value;
-            }
-            $containerCreatePostBody->setEnv($envs);
-
-            $containerCreateResponse = $this->dockerClient->containerCreate($containerCreatePostBody);
+            /** @var ContainerCreateResponse|null $containerCreateResponse */
+            $containerCreateResponse = $this->dockerClient->containerCreate($containerConfig);
             $this->id = $containerCreateResponse?->getId() ?? '';
         } catch (ContainerCreateNotFoundException) {
-            /** @var CreateImageStream $imageCreateResponse */
-            $imageCreateResponse = $this->dockerClient->imageCreate(null, [
-                'fromImage' => explode(':', $this->image)[0],
-                'tag' => explode(':', $this->image)[1] ?? 'latest',
-            ]);
-            $imageCreateResponse->wait();
-
+            if ($this->startAttempts >= self::MAX_START_ATTEMPTS) {
+                throw new \RuntimeException("Failed to start container after pulling image.");
+            }
+            // If the image is not found, pull it and try again
+            // TODO: add withPullPolicy support
+            $this->pullImage();
             return $this->start();
         }
 
         $this->dockerClient->containerStart($this->id);
 
-        if (!isset($this->waitStrategy)) {
-            $this->withWait(new WaitForContainer());
-        }
-
         $startedContainer = new StartedGenericContainer($this->id);
         $this->waitStrategy->wait($startedContainer);
 
         return $startedContainer;
+    }
+
+    protected function createContainerConfig(): ContainersCreatePostBody
+    {
+        $containerCreatePostBody = new ContainersCreatePostBody();
+        $containerCreatePostBody->setImage($this->image);
+        $containerCreatePostBody->setCmd($this->command);
+
+        $envs = array_map(static fn ($key, $value) => "$key=$value", array_keys($this->env), $this->env);
+        $containerCreatePostBody->setEnv($envs);
+
+        $hostConfig = $this->createHostConfig();
+        $containerCreatePostBody->setHostConfig($hostConfig);
+
+        if ($this->entryPoint !== null) {
+            $containerCreatePostBody->setEntrypoint([$this->entryPoint]);
+        }
+
+        if ($this->healthConfig !== null) {
+            $containerCreatePostBody->setHealthcheck($this->healthConfig);
+        }
+
+        if ($this->networkName !== null) {
+            $networkingConfig = new NetworkingConfig();
+            $endpointsConfig = new \ArrayObject([
+                $this->networkName => new EndpointSettings(),
+            ]);
+            $networkingConfig->setEndpointsConfig($endpointsConfig);
+            $containerCreatePostBody->setNetworkingConfig($networkingConfig);
+        }
+
+        return $containerCreatePostBody;
+    }
+
+    protected function createHostConfig(): ?HostConfig
+    {
+        /**
+         * For some reason, if some of the properties are not set, but HostConfig is returned,
+         * the API will throw ContainerCreateBadRequestException: bad parameter.
+         * Until it will be checked and fixed, we just return null if these properties are not set.
+         * */
+        if ($this->exposedPorts === [] && !$this->isPrivileged && $this->mounts === []) {
+            return null;
+        }
+
+        $hostConfig = new HostConfig();
+
+        if ($this->exposedPorts !== []) {
+            $portBindings = $this->createPortBindings();
+            $hostConfig->setPortBindings($portBindings);
+        }
+
+        if ($this->isPrivileged) {
+            $hostConfig->setPrivileged(true);
+        }
+
+        if ($this->mounts !== []) {
+            $hostConfig->setMounts($this->mounts);
+        }
+
+        return $hostConfig;
+    }
+
+    /**
+     * @return array<string, array<int, PortBinding>>
+     */
+    protected function createPortBindings(): array
+    {
+        $portBindings = [];
+
+        foreach ($this->exposedPorts as $port) {
+            $portBinding = new PortBinding();
+            $portBinding->setHostPort((string)$this->portGenerator->generatePort());
+            $portBinding->setHostIp('0.0.0.0');
+            $portBindings[$port] = [$portBinding];
+        }
+
+        return $portBindings;
+    }
+
+    protected function pullImage(): void
+    {
+        [$fromImage, $tag] = explode(':', $this->image) + [1 => 'latest'];
+        /** @var CreateImageStream $imageCreateResponse */
+        $imageCreateResponse = $this->dockerClient->imageCreate(null, [
+            'fromImage' => $fromImage,
+            'tag' => $tag,
+        ]);
+        $imageCreateResponse->wait();
     }
 }
