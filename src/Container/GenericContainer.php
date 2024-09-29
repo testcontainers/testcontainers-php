@@ -59,6 +59,7 @@ class GenericContainer implements TestContainer
     {
         $this->image = $image;
         $this->dockerClient = DockerContainerClient::getDockerClient();
+        $this->waitStrategy = new WaitForContainer();
     }
 
     public function getId(): string
@@ -184,10 +185,6 @@ class GenericContainer implements TestContainer
         }
 
         $this->dockerClient->containerStart($this->id);
-
-        if (!isset($this->waitStrategy)) {
-            $this->withWait(new WaitForContainer());
-        }
 
         $startedContainer = new StartedGenericContainer($this->id);
         $this->waitStrategy->wait($startedContainer);
