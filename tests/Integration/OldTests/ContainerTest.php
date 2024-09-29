@@ -110,6 +110,8 @@ class ContainerTest extends TestCase
         $this->assertArrayHasKey('cluster_name', $data);
 
         $this->assertEquals('docker-cluster', $data['cluster_name']);
+
+        $container->stop();
     }
 
     public function testPostgreSQLContainer(): void
