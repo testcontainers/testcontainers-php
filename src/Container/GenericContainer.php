@@ -123,12 +123,19 @@ class GenericContainer implements TestContainer
         return $this;
     }
 
-    public function withHealthCheckCommand(string $command, int $healthCheckIntervalInMS = 1000): static
-    {
-        $this->healthConfig = new HealthConfig([
-            'Test' => ['CMD', $command],
-            'Interval' => $healthCheckIntervalInMS,
-        ]);
+    public function withHealthCheckCommand(
+        string $command,
+        int $intervalInMilliseconds = 1000,
+        int $timeoutInMilliseconds = 3000,
+        int $retries = 3,
+        int $startPeriodInMilliseconds = 0
+    ): static {
+        $this->healthConfig = new HealthConfig();
+        $this->healthConfig->setTest(['CMD-SHELL', $command]);
+        $this->healthConfig->setInterval($intervalInMilliseconds * 1_000_000);
+        $this->healthConfig->setTimeout($timeoutInMilliseconds * 1_000_000);
+        $this->healthConfig->setRetries($retries);
+        $this->healthConfig->setStartPeriod($startPeriodInMilliseconds * 1_000_000);
 
         return $this;
     }

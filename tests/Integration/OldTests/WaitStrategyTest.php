@@ -8,7 +8,8 @@ use PHPUnit\Framework\TestCase;
 use Predis\Client;
 use Predis\Connection\ConnectionException;
 use Testcontainers\Container\Container;
-use Testcontainers\Exception\ContainerNotReadyException;
+use Testcontainers\Container\MySQLContainer;
+use Testcontainers\Container\RedisContainer;
 use Testcontainers\Wait\WaitForExec;
 use Testcontainers\Wait\WaitForHealthCheck;
 use Testcontainers\Wait\WaitForHttp;
@@ -28,7 +29,7 @@ class WaitStrategyTest extends TestCase
 
     public function testWaitForExec(): void
     {
-        $container = Container::make('mysql')
+        $container = MySQLContainer::make()
             ->withEnvironment('MYSQL_ROOT_PASSWORD', 'root')
             ->withWait(
                 new WaitForExec([
@@ -52,11 +53,13 @@ class WaitStrategyTest extends TestCase
         $version = $query->fetchColumn();
 
         $this->assertNotEmpty($version);
+
+        $container->stop();
     }
 
     public function testWaitForLog(): void
     {
-        $container = Container::make('redis:6.2.5')
+        $container = RedisContainer::make()
             ->withWait(new WaitForLog('Ready to accept connections'));
 
         $container->run();
@@ -138,6 +141,7 @@ class WaitStrategyTest extends TestCase
     {
         $container = Container::make('nginx')
             ->withHealthCheckCommand('curl --fail http://localhost')
+            ->withPort('80', '80')
             ->withWait(new WaitForHealthCheck());
 
         $container->run();
@@ -153,5 +157,7 @@ class WaitStrategyTest extends TestCase
         $this->assertIsString($response);
 
         $this->assertStringContainsString('Welcome to nginx!', $response);
+
+        $container->stop();
     }
 }
