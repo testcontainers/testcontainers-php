@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Testcontainers\Container;
 
+use Testcontainers\Utils\PortGenerator\FixedPortGenerator;
 use Testcontainers\Wait\WaitForLog;
 
 /**
@@ -16,6 +17,7 @@ class OpenSearchContainer extends Container
     public function __construct(string $version = 'latest')
     {
         parent::__construct('opensearchproject/opensearch:' . $version);
+        $this->withPortGenerator(new FixedPortGenerator([9200]));
         $this->withExposedPorts(9200);
         $this->withEnvironment('discovery.type', 'single-node');
         $this->withEnvironment('OPENSEARCH_INITIAL_ADMIN_PASSWORD', 'c3o_ZPHo!');

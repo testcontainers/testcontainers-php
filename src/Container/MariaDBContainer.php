@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Testcontainers\Container;
 
+use Testcontainers\Utils\PortGenerator\FixedPortGenerator;
 use Testcontainers\Wait\WaitForExec;
 
 /**
@@ -16,6 +17,7 @@ class MariaDBContainer extends Container
     public function __construct(string $version = 'latest', string $mysqlRootPassword = 'root')
     {
         parent::__construct('mariadb:' . $version);
+        $this->withPortGenerator(new FixedPortGenerator([3306]));
         $this->withExposedPorts(3306);
         $this->withEnvironment('MARIADB_ROOT_PASSWORD', $mysqlRootPassword);
         $this->withWait(new WaitForExec([

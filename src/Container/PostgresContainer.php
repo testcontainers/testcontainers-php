@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Testcontainers\Container;
 
+use Testcontainers\Utils\PortGenerator\FixedPortGenerator;
 use Testcontainers\Wait\WaitForExec;
 
 /**
@@ -20,6 +21,7 @@ class PostgresContainer extends Container
         public readonly string $database = 'test'
     ) {
         parent::__construct('postgres:' . $version);
+        $this->withPortGenerator(new FixedPortGenerator([5432]));
         $this->withExposedPorts(5432);
         $this->withEnvironment('POSTGRES_USER', $this->username);
         $this->withEnvironment('POSTGRES_PASSWORD', $this->password);

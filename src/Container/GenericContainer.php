@@ -17,6 +17,7 @@ use Docker\Docker;
 use Docker\Stream\CreateImageStream;
 use InvalidArgumentException;
 use Testcontainers\ContainerClient\DockerContainerClient;
+use Testcontainers\Utils\PortGenerator\PortGenerator;
 use Testcontainers\Utils\PortGenerator\RandomUniquePortGenerator;
 use Testcontainers\Utils\PortNormalizer;
 use Testcontainers\Wait\WaitForContainer;
@@ -44,6 +45,8 @@ class GenericContainer implements TestContainer
 
     protected WaitStrategy $waitStrategy;
 
+    protected PortGenerator $portGenerator;
+
     protected bool $isPrivileged = false;
     protected ?string $networkName = null;
 
@@ -63,6 +66,7 @@ class GenericContainer implements TestContainer
         $this->image = $image;
         $this->dockerClient = DockerContainerClient::getDockerClient();
         $this->waitStrategy = new WaitForContainer();
+        $this->portGenerator = new RandomUniquePortGenerator();
     }
 
     public function getId(): string
@@ -174,6 +178,13 @@ class GenericContainer implements TestContainer
         return $this;
     }
 
+    public function withPortGenerator(PortGenerator $portGenerator): static
+    {
+        $this->portGenerator = $portGenerator;
+
+        return $this;
+    }
+
     public function start(): StartedGenericContainer
     {
         $this->startAttempts++;
@@ -266,12 +277,11 @@ class GenericContainer implements TestContainer
      */
     protected function createPortBindings(): array
     {
-        $portGenerator = new RandomUniquePortGenerator();
         $portBindings = [];
 
         foreach ($this->exposedPorts as $port) {
             $portBinding = new PortBinding();
-            $portBinding->setHostPort((string)$portGenerator->generatePort());
+            $portBinding->setHostPort((string)$this->portGenerator->generatePort());
             $portBinding->setHostIp('0.0.0.0');
             $portBindings[$port] = [$portBinding];
         }
