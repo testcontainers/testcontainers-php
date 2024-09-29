@@ -47,6 +47,9 @@ class GenericContainer implements TestContainer
     protected bool $isPrivileged = false;
     protected ?string $networkName = null;
 
+    protected int $startAttempts = 0;
+    protected const MAX_START_ATTEMPTS = 2;
+
     /**
      * @var array<Mount>
      */
@@ -173,13 +176,18 @@ class GenericContainer implements TestContainer
 
     public function start(): StartedGenericContainer
     {
+        $this->startAttempts++;
         $containerConfig = $this->createContainerConfig();
         try {
             /** @var ContainerCreateResponse|null $containerCreateResponse */
             $containerCreateResponse = $this->dockerClient->containerCreate($containerConfig);
             $this->id = $containerCreateResponse?->getId() ?? '';
         } catch (ContainerCreateNotFoundException) {
+            if ($this->startAttempts >= self::MAX_START_ATTEMPTS) {
+                throw new \RuntimeException("Failed to start container after pulling image.");
+            }
             // If the image is not found, pull it and try again
+            // TODO: add withPullPolicy support
             $this->pullImage();
             return $this->start();
         }
@@ -254,12 +262,12 @@ class GenericContainer implements TestContainer
     }
 
     /**
-     * @return \ArrayObject<string, list<PortBinding>>
+     * @return array<string, array<int, PortBinding>>
      */
-    protected function createPortBindings(): \ArrayObject
+    protected function createPortBindings(): array
     {
         $portGenerator = new RandomUniquePortGenerator();
-        $portBindings = new \ArrayObject();
+        $portBindings = [];
 
         foreach ($this->exposedPorts as $port) {
             $portBinding = new PortBinding();
