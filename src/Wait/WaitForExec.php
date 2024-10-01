@@ -5,31 +5,56 @@ declare(strict_types=1);
 namespace Testcontainers\Wait;
 
 use Closure;
-use Symfony\Component\Process\Process;
-use Testcontainers\Exception\ContainerNotReadyException;
+use Docker\API\Model\ExecIdJsonGetResponse200;
+use Testcontainers\Container\StartedTestContainer;
+use Testcontainers\Exception\ContainerWaitingTimeoutException;
 
-class WaitForExec implements WaitInterface
+/**
+ * Uses $timout and $pollInterval in milliseconds to set the parameters for waiting.
+ */
+class WaitForExec extends BaseWaitStrategy
 {
     /**
      * @param array<string> $command
      */
-    public function __construct(private array $command, private ?Closure $checkFunction = null)
-    {
+    public function __construct(
+        protected array $command,
+        protected ?Closure $checkFunction = null,
+        int $timeout = 10000,
+        int $pollInterval = 500
+    ) {
+        parent::__construct($timeout, $pollInterval);
     }
 
-    public function wait(string $id): void
+    public function wait(StartedTestContainer $container): void
     {
-        $process = new Process(['docker', 'exec', $id, ...$this->command]);
+        $startTime = microtime(true) * 1000;
 
-        try {
-            $process->mustRun();
-        } catch (\Exception $e) {
-            throw new ContainerNotReadyException($id, $e);
-        }
+        while (true) {
+            $elapsedTime = (microtime(true) * 1000) - $startTime;
 
-        if ($this->checkFunction !== null) {
-            $func = $this->checkFunction;
-            $func($process);
+            if ($elapsedTime > $this->timeout) {
+                throw new ContainerWaitingTimeoutException($container->getId());
+            }
+
+            $contents = $container->exec($this->command);
+
+            // Inspect the exec to check the exit code
+            /** @var ExecIdJsonGetResponse200 | null $execInspect */
+            $execInspect = $container->getClient()->execInspect($container->getLastExecId() ?? '');
+            $exitCode = $execInspect?->getExitCode();
+
+            // If a custom check function is provided, use it to validate the command output
+            if ($this->checkFunction !== null) {
+                $checkResult = ($this->checkFunction)($exitCode, $contents);
+                if ($checkResult) {
+                    return;
+                }
+            } elseif ($exitCode === 0) {
+                return;  // Command succeeded
+            }
+
+            usleep($this->pollInterval * 1000);
         }
     }
 }

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Testcontainers\Tests\Integration;
+namespace Testcontainers\Tests\Integration\OldTests;
 
 use PHPUnit\Framework\TestCase;
 use Predis\Client;
@@ -12,6 +12,9 @@ use Testcontainers\Container\OpenSearchContainer;
 use Testcontainers\Container\PostgresContainer;
 use Testcontainers\Container\RedisContainer;
 
+/**
+ * Old test classes kept to check backward compatibility
+ */
 class ContainerTest extends TestCase
 {
     public function testMySQL(): void
@@ -35,6 +38,8 @@ class ContainerTest extends TestCase
         $databases = $query->fetchAll(\PDO::FETCH_COLUMN);
 
         $this->assertContains('foo', $databases);
+
+        $container->stop();
     }
 
     public function testMariaDB(): void
@@ -58,6 +63,8 @@ class ContainerTest extends TestCase
         $databases = $query->fetchAll(\PDO::FETCH_COLUMN);
 
         $this->assertContains('foo', $databases);
+
+        $container->stop();
     }
 
     public function testRedis(): void
@@ -75,8 +82,13 @@ class ContainerTest extends TestCase
         $redis->ping();
 
         $this->assertTrue($redis->isConnected());
+
+        $container->stop();
     }
 
+    /**
+     * @throws \JsonException
+     */
     public function testOpenSearch(): void
     {
         $container = OpenSearchContainer::make();
@@ -93,11 +105,13 @@ class ContainerTest extends TestCase
         $this->assertNotEmpty($response);
 
         /** @var array{cluster_name: string} $data */
-        $data = json_decode($response, true, JSON_THROW_ON_ERROR);
+        $data = json_decode($response, true, JSON_THROW_ON_ERROR, JSON_THROW_ON_ERROR);
 
         $this->assertArrayHasKey('cluster_name', $data);
 
         $this->assertEquals('docker-cluster', $data['cluster_name']);
+
+        $container->stop();
     }
 
     public function testPostgreSQLContainer(): void
@@ -121,5 +135,7 @@ class ContainerTest extends TestCase
         $databases = $query->fetchAll(\PDO::FETCH_COLUMN);
 
         $this->assertContains('foo', $databases);
+
+        $container->stop();
     }
 }

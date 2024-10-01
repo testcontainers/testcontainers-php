@@ -2,17 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Testcontainers\Container;
+namespace Testcontainers\Modules;
 
-use Testcontainers\Utils\PortGenerator\FixedPortGenerator;
+use Testcontainers\Container\GenericContainer;
 use Testcontainers\Wait\WaitForExec;
 
-/**
- * Left for namespace backward compatibility
- * @deprecated Use \Testcontainers\Modules\PostgresContainer instead.
- * TODO: Remove in next major release.
- */
-class PostgresContainer extends Container
+class PostgresContainer extends GenericContainer
 {
     public function __construct(
         string $version = 'latest',
@@ -21,7 +16,6 @@ class PostgresContainer extends Container
         public readonly string $database = 'test'
     ) {
         parent::__construct('postgres:' . $version);
-        $this->withPortGenerator(new FixedPortGenerator([5432]));
         $this->withExposedPorts(5432);
         $this->withEnvironment('POSTGRES_USER', $this->username);
         $this->withEnvironment('POSTGRES_PASSWORD', $this->password);
@@ -29,17 +23,16 @@ class PostgresContainer extends Container
         $this->withWait(new WaitForExec(["pg_isready", "-h", "127.0.0.1", "-U", $this->username]));
     }
 
-    public static function make(string $version = 'latest', string $dbPassword = 'root'): self
-    {
-        return new self(
-            version: $version,
-            password: $dbPassword
-        );
-    }
-
     public function withPostgresUser(string $username): self
     {
         $this->withEnvironment('POSTGRES_USER', $username);
+
+        return $this;
+    }
+
+    public function withPostgresPassword(string $password): self
+    {
+        $this->withEnvironment('POSTGRES_PASSWORD', $password);
 
         return $this;
     }

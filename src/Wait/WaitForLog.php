@@ -4,30 +4,45 @@ declare(strict_types=1);
 
 namespace Testcontainers\Wait;
 
-use Symfony\Component\Process\Process;
-use Testcontainers\Exception\ContainerNotReadyException;
+use Testcontainers\Container\StartedTestContainer;
+use Testcontainers\Exception\ContainerWaitingTimeoutException;
 
-class WaitForLog implements WaitInterface
+/**
+ * Uses $timout and $pollInterval in milliseconds to set the parameters for waiting.
+ */
+class WaitForLog extends BaseWaitStrategy
 {
-    public function __construct(private string $message, private bool $enableRegex = false)
-    {
+    public function __construct(
+        protected string $message,
+        protected bool $enableRegex = false,
+        int $timeout = 10000,
+        int $pollInterval = 500
+    ) {
+        parent::__construct($timeout, $pollInterval);
     }
 
-    public function wait(string $id): void
+    public function wait(StartedTestContainer $container): void
     {
-        $process = new Process(['docker', 'logs', $id]);
-        $process->mustRun();
+        $startTime = microtime(true) * 1000;
 
-        $output = $process->getOutput() . PHP_EOL . $process->getErrorOutput();
+        while (true) {
+            $elapsedTime = (microtime(true) * 1000) - $startTime;
 
-        if ($this->enableRegex) {
-            if (!preg_match($this->message, $output)) {
-                throw new ContainerNotReadyException($id, new \RuntimeException('Message not found in logs'));
+            if ($elapsedTime > $this->timeout) {
+                throw new ContainerWaitingTimeoutException($container->getId());
             }
-        } else {
-            if (!str_contains($output, $this->message)) {
-                throw new ContainerNotReadyException($id, new \RuntimeException('Message not found in logs'));
+
+            $output = $container->logs();
+
+            if ($this->enableRegex) {
+                if (preg_match($this->message, $output)) {
+                    return;
+                }
+            } elseif (str_contains($output, $this->message)) {
+                return;
             }
+
+            usleep($this->pollInterval * 1000);
         }
     }
 }

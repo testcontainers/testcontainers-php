@@ -4,27 +4,70 @@ declare(strict_types=1);
 
 namespace Testcontainers\Wait;
 
-use RuntimeException;
-use Symfony\Component\Process\Process;
-use Testcontainers\Exception\ContainerNotReadyException;
+use Docker\API\Model\ContainersIdJsonGetResponse200;
+use Testcontainers\Container\StartedTestContainer;
+use Testcontainers\Exception\ContainerStateException;
+use Testcontainers\Exception\ContainerWaitingTimeoutException;
+use Testcontainers\Exception\HealthCheckFailedException;
+use Testcontainers\Exception\HealthCheckNotConfiguredException;
+use Testcontainers\Exception\UnknownHealthStatusException;
 
-class WaitForHealthCheck implements WaitInterface
+/**
+ * Wait strategy that waits until the container's health status is 'healthy'.
+ *
+ * Possible health statuses:
+ * - "none":      No health check configured.
+ * - "starting":  Health check is in progress.
+ * - "healthy":   Container is healthy.
+ * - "unhealthy": Container is unhealthy.
+ */
+class WaitForHealthCheck extends BaseWaitStrategy
 {
-    public function wait(string $id): void
+    public function wait(StartedTestContainer $container): void
     {
-        $process = new Process(['docker', 'inspect', '--format', '{{json .State.Health.Status}}', $id]);
-        $process->mustRun();
+        $startTime = microtime(true);
 
-        $status = json_decode($process->getOutput(), true, 512, JSON_THROW_ON_ERROR);
+        while (true) {
+            $elapsedTime = (microtime(true) - $startTime) * 1000;
 
-        if (!is_string($status)) {
-            throw new ContainerNotReadyException($id, new RuntimeException('Invalid json output'));
-        }
+            if ($elapsedTime > $this->timeout) {
+                throw new ContainerWaitingTimeoutException($container->getId());
+            }
 
-        $status = trim($status, '"');
+            /** @var ContainersIdJsonGetResponse200|null $containerInspect */
+            $containerInspect = $container->getClient()->containerInspect($container->getId());
 
-        if ($status !== 'healthy') {
-            throw new ContainerNotReadyException($id);
+            $containerState = $containerInspect?->getState();
+
+            if ($containerState !== null) {
+                $health = $containerState->getHealth();
+
+                if ($health !== null) {
+                    $status = $health->getStatus();
+
+                    switch ($status) {
+                        case 'healthy':
+                            return; // Container is healthy
+                        case 'starting':
+                            // Health check is still in progress; continue waiting
+                            break;
+                        case 'unhealthy':
+                            throw new HealthCheckFailedException($container->getId());
+                        case 'none':
+                            throw new HealthCheckNotConfiguredException($container->getId());
+                        default:
+                            throw new UnknownHealthStatusException($container->getId(), (string)$status);
+                    }
+                } else {
+                    // Health is null; treat as 'none' status
+                    throw new HealthCheckNotConfiguredException($container->getId());
+                }
+            } else {
+                // Container state is null
+                throw new ContainerStateException($container->getId());
+            }
+
+            usleep($this->pollInterval * 1000);
         }
     }
 }

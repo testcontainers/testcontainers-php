@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace Testcontainers\Wait;
 
+use Docker\Docker;
 use Testcontainers\Exception\ContainerNotReadyException;
-use Testcontainers\Trait\DockerContainerAwareTrait;
 
-class WaitForHttp implements WaitInterface
+//TODO: not ready yet
+class WaitForHttp implements WaitStrategy
 {
-    use DockerContainerAwareTrait;
-
     public const METHOD_GET = 'GET';
     public const METHOD_POST = 'POST';
     public const METHOD_PUT = 'PUT';
@@ -22,9 +21,11 @@ class WaitForHttp implements WaitInterface
     private string $method = 'GET';
     private string $path = '/';
     private int $statusCode = 200;
+    private Docker $dockerClient;
 
     public function __construct(private int $port)
     {
+        $this->dockerClient = Docker::create();
     }
 
     public static function make(int $port): self
@@ -58,7 +59,14 @@ class WaitForHttp implements WaitInterface
 
     public function wait(string $id): void
     {
-        $containerAddress = self::dockerContainerAddress(containerId: $id);
+        $containerNetworks = $this->dockerClient->containerInspect($id)->getNetworkSettings()->getNetworks();
+        $containerAddress = null;
+        foreach ($containerNetworks as $network) {
+            if ($network->getNetworkID() === $id) {
+                $containerAddress = $network->getIpAddress();
+                break;
+            }
+        }
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, sprintf('http://%s:%d%s', $containerAddress, $this->port, $this->path));
