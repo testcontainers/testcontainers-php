@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Testcontainers\Tests\Unit\Utils;
 
-use Docker\Docker;
+use Testcontainers\Docker\DockerClient;
+use Testcontainers\Docker\Model\Network;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Testcontainers\Utils\HostResolver;
@@ -29,7 +30,7 @@ class HostResolverTest extends TestCase
         putenv('TESTCONTAINERS_HOST_OVERRIDE=tcp://another:2375');
         putenv('DOCKER_HOST=tcp://docker:2375');
 
-        $dummyClient = $this->createMock(Docker::class);
+        $dummyClient = $this->createMock(DockerClient::class);
         $resolver = new HostResolver($dummyClient);
         $host = $resolver->resolveHost();
         $this->assertEquals('tcp://another:2375', $host);
@@ -42,7 +43,7 @@ class HostResolverTest extends TestCase
             putenv('DOCKER_HOST=' . $protocol . '://docker:2375');
             // Clear any override.
             putenv('TESTCONTAINERS_HOST_OVERRIDE');
-            $dummyClient = $this->createMock(Docker::class);
+            $dummyClient = $this->createMock(DockerClient::class);
             $resolver = new HostResolver($dummyClient);
             $host = $resolver->resolveHost();
             $this->assertEquals('docker', $host, "Protocol {$protocol} did not return expected hostname.");
@@ -51,7 +52,7 @@ class HostResolverTest extends TestCase
 
     public function testDoesNotReturnOverrideWhenAllowUserOverridesIsFalse(): void
     {
-        $dummyClient = $this->createMock(Docker::class);
+        $dummyClient = $this->createMock(DockerClient::class);
         $resolver = new class ($dummyClient) extends HostResolver {
             protected function allowUserOverrides(): bool
             {
@@ -67,7 +68,7 @@ class HostResolverTest extends TestCase
 
     public function testReturnsLocalhostForUnixAndNpipeProtocolsWhenNotInContainer(): void
     {
-        $dummyClient = $this->createMock(Docker::class);
+        $dummyClient = $this->createMock(DockerClient::class);
         $resolver = new class ($dummyClient) extends HostResolver {
             protected function isInContainer(): bool
             {
@@ -86,41 +87,17 @@ class HostResolverTest extends TestCase
     public function testReturnsHostFromGatewayWhenRunningInContainer(): void
     {
         // For this test we simulate that we are in a container and the Docker client returns a gateway.
-        $dockerClient = $this->getMockBuilder(Docker::class)
+        $dockerClient = $this->getMockBuilder(DockerClient::class)
             ->disableOriginalConstructor()
             ->getMock();
 
-        // Build a fake network inspection response:
-        $fakeConfig = new class () {
-            public function getGateway(): ?string
-            {
-                return '172.0.0.1';
-            }
-        };
-        $fakeIPAM = new class ($fakeConfig) {
-            /** @var object[] */
-            private array $config;
-            public function __construct(object $config)
-            {
-                $this->config = [$config];
-            }
-            /** @return object[] */
-            public function getConfig(): array
-            {
-                return $this->config;
-            }
-        };
-        $fakeNetwork = new class ($fakeIPAM) {
-            private object $ipam;
-            public function __construct(object $ipam)
-            {
-                $this->ipam = $ipam;
-            }
-            public function getIPAM(): object
-            {
-                return $this->ipam;
-            }
-        };
+        $fakeNetwork = new Network([
+            'IPAM' => [
+                'Config' => [
+                    ['Gateway' => '172.0.0.1'],
+                ],
+            ],
+        ]);
 
         // Expect that networkInspect will be called with "bridge" (since DOCKER_HOST does not contain "podman.sock")
         $dockerClient->expects($this->once())
@@ -145,7 +122,7 @@ class HostResolverTest extends TestCase
     public function testUsesBridgeNetworkAsGatewayForDockerProvider(): void
     {
         // For Docker provider (non-Podman) the network used should be "bridge".
-        $dockerClient = $this->getMockBuilder(Docker::class)
+        $dockerClient = $this->getMockBuilder(DockerClient::class)
             ->disableOriginalConstructor()
             ->getMock();
         // Expect networkInspect to be called with "bridge"
@@ -175,7 +152,7 @@ class HostResolverTest extends TestCase
     public function testUsesPodmanNetworkAsGatewayForPodmanProvider(): void
     {
         // For Podman, DOCKER_HOST contains "podman.sock" so the network should be "podman".
-        $dockerClient = $this->getMockBuilder(Docker::class)
+        $dockerClient = $this->getMockBuilder(DockerClient::class)
             ->disableOriginalConstructor()
             ->getMock();
         // Expect networkInspect to be called with "podman"
@@ -204,7 +181,7 @@ class HostResolverTest extends TestCase
     public function testReturnsHostFromDefaultGatewayWhenRunningInContainer(): void
     {
         // Override both findGateway() and findDefaultGateway() to simulate a missing network gateway and a default gateway result.
-        $dummyClient = $this->createMock(Docker::class);
+        $dummyClient = $this->createMock(DockerClient::class);
         $resolver = new class ($dummyClient) extends HostResolver {
             protected function isInContainer(): bool
             {
@@ -228,7 +205,7 @@ class HostResolverTest extends TestCase
     public function testReturnsLocalhostIfUnableToFindGateway(): void
     {
         // Override to simulate that neither network inspection nor default gateway yield a result.
-        $dummyClient = $this->createMock(Docker::class);
+        $dummyClient = $this->createMock(DockerClient::class);
         $resolver = new class ($dummyClient) extends HostResolver {
             protected function isInContainer(): bool
             {
@@ -252,7 +229,7 @@ class HostResolverTest extends TestCase
     public function testThrowsForUnsupportedProtocol(): void
     {
         putenv('DOCKER_HOST=invalid://unknown');
-        $dummyClient = $this->createMock(Docker::class);
+        $dummyClient = $this->createMock(DockerClient::class);
         $resolver = new HostResolver($dummyClient);
 
         $this->expectException(RuntimeException::class);

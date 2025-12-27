@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Testcontainers\ContainerClient;
 
-use Docker\Docker as DockerClient;
+use Testcontainers\Docker\DockerClient;
 
 class DockerContainerClient
 {
