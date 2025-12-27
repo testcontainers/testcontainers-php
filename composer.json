@@ -15,10 +15,7 @@
     ],
     "require": {
         "ext-curl": "*",
-        "php": ">= 8.1",
-        "beluga-php/docker-php": "^1.45.7",
-        "beluga-php/docker-php-api": "^7.1.45.5",
-        "php-http/client-common": "^2.7"
+        "php": ">= 8.1"
     },
     "require-dev": {
         "ext-pdo": "*",
@@ -59,8 +56,7 @@
     },
     "config": {
         "allow-plugins": {
-            "phpstan/extension-installer": true,
-            "php-http/discovery": false
+            "phpstan/extension-installer": true
         }
     }
 }

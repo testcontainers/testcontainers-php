@@ -5,11 +5,7 @@ declare(strict_types=1);
 namespace Testcontainers\ContainerClient;
 
 use Composer\InstalledVersions;
-use Docker\Docker as DockerClient;
-use Docker\DockerClientFactory;
-use Http\Client\Common\Plugin\HeaderDefaultsPlugin;
-use Http\Client\Common\PluginClient;
-use Psr\Http\Client\ClientInterface;
+use Testcontainers\Docker\DockerClient;
 
 class DockerContainerClient
 {
@@ -19,13 +15,7 @@ class DockerContainerClient
     private static ?DockerClient $dockerClient = null;
 
     /**
-     * @var (callable(): ClientInterface)|null Factory for the base HTTP client.
-     *     When null, DockerClientFactory::createFromEnv() is used.
-     */
-    private static $httpClientFactory = null;
-
-    /**
-     * @var (callable(ClientInterface): DockerClient)|null Factory for the Docker client.
+     * @var (callable(string): DockerClient)|null Factory for the Docker client, receiving the User-Agent string.
      *     When null, DockerClient::create() is used.
      */
     private static $dockerClientFactory = null;
@@ -43,16 +33,11 @@ class DockerContainerClient
     public static function getDockerClient(): DockerClient
     {
         if (self::$dockerClient === null) {
-            $version = static::resolveVersion();
+            $userAgent = 'tc-php/' . static::resolveVersion();
 
-            $baseHttpClient = self::createHttpClient();
-
-            $httpClient = new PluginClient(
-                $baseHttpClient,
-                [new HeaderDefaultsPlugin(['User-Agent' => 'tc-php/' . $version])]
-            );
-
-            self::$dockerClient = self::createDockerClient($httpClient);
+            self::$dockerClient = self::$dockerClientFactory !== null
+                ? (self::$dockerClientFactory)($userAgent)
+                : DockerClient::create($userAgent);
         }
 
         return self::$dockerClient;
@@ -80,26 +65,6 @@ class DockerContainerClient
     }
 
     /**
-     * Returns the base HTTP client, using the injected factory if set.
-     */
-    private static function createHttpClient(): ClientInterface
-    {
-        return self::$httpClientFactory !== null
-            ? (self::$httpClientFactory)()
-            : DockerClientFactory::createFromEnv();
-    }
-
-    /**
-     * Builds the DockerClient from the given HTTP client, using the injected factory if set.
-     */
-    private static function createDockerClient(ClientInterface $httpClient): DockerClient
-    {
-        return self::$dockerClientFactory !== null
-            ? (self::$dockerClientFactory)($httpClient)
-            : DockerClient::create($httpClient);
-    }
-
-    /**
      * Injects a DockerClient instance for testing or special use cases.
      * Note: clients injected via this method will not have the tc-php User-Agent header applied automatically.
      *
@@ -111,25 +76,22 @@ class DockerContainerClient
     }
 
     /**
-     * Resets the injectable factories to their defaults.
+     * Injects a factory used to build the DockerClient from the User-Agent string.
      * For use in tests only — do not call in production code.
      *
-     * @param (callable(): ClientInterface)|null $httpClientFactory
-     * @param (callable(ClientInterface): DockerClient)|null $dockerClientFactory
+     * @param (callable(string): DockerClient)|null $dockerClientFactory
      */
-    public static function setFactories(?callable $httpClientFactory, ?callable $dockerClientFactory): void
+    public static function setDockerClientFactory(?callable $dockerClientFactory): void
     {
-        self::$httpClientFactory = $httpClientFactory;
         self::$dockerClientFactory = $dockerClientFactory;
     }
 
     /**
-     * Resets the injectable factories to their defaults (both null).
+     * Resets the injectable factory to its default (null).
      * For use in tests only — do not call in production code.
      */
-    public static function resetFactories(): void
+    public static function resetDockerClientFactory(): void
     {
-        self::$httpClientFactory = null;
         self::$dockerClientFactory = null;
     }
 }
