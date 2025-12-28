@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Testcontainers\Tests\Integration;
 
-use Docker\API\Model\ContainersIdJsonGetResponse200;
+use Testcontainers\Docker\Model\ContainersIdJsonGetResponse200;
 use PHPUnit\Framework\TestCase;
 use Testcontainers\Container\GenericContainer;
 use Testcontainers\Wait\WaitForHostPort;

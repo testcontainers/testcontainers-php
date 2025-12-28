@@ -4,27 +4,25 @@ declare(strict_types=1);
 
 namespace Testcontainers\Container;
 
-use Docker\API\Client;
-use Docker\API\Model\ContainersIdExecPostBody;
-use Docker\API\Model\ContainersIdJsonGetResponse200;
-use Docker\API\Model\EndpointSettings;
-use Docker\API\Model\IdResponse;
-use Docker\API\Model\PortBinding;
-use Docker\API\Runtime\Client\Client as DockerRuntimeClient;
-use Docker\Docker;
+use Testcontainers\Docker\DockerClient;
+use Testcontainers\Docker\Model\ContainersIdExecPostBody;
+use Testcontainers\Docker\Model\ContainersIdJsonGetResponse200;
+use Testcontainers\Docker\Model\EndpointSettings;
+use Testcontainers\Docker\Model\IdResponse;
+use Testcontainers\Docker\Model\PortBinding;
 use RuntimeException;
 use Testcontainers\ContainerClient\DockerContainerClient;
 use Testcontainers\Utils\HostResolver;
 
 class StartedGenericContainer implements StartedTestContainer
 {
-    protected Docker $dockerClient;
+    protected DockerClient $dockerClient;
 
     protected ?ContainersIdJsonGetResponse200 $inspectResponse = null;
 
     protected ?string $lastExecId = null;
 
-    public function __construct(protected readonly string $id, ?Docker $dockerClient = null)
+    public function __construct(protected readonly string $id, ?DockerClient $dockerClient = null)
     {
         $this->dockerClient = $dockerClient ?? DockerContainerClient::getDockerClient();
     }
@@ -39,7 +37,7 @@ class StartedGenericContainer implements StartedTestContainer
         return $this->lastExecId;
     }
 
-    public function getClient(): Docker
+    public function getClient(): DockerClient
     {
         return $this->dockerClient;
     }
@@ -65,7 +63,7 @@ class StartedGenericContainer implements StartedTestContainer
         $this->lastExecId = $exec->getId();
 
         $contents = $this->dockerClient
-            ->execStart($this->lastExecId, null, Client::FETCH_RESPONSE)
+            ->execStart($this->lastExecId, null, DockerClient::FETCH_RESPONSE)
             ?->getBody()
             ->getContents() ?? '';
 
@@ -93,7 +91,7 @@ class StartedGenericContainer implements StartedTestContainer
             ->containerLogs(
                 $this->id,
                 ['stdout' => true, 'stderr' => true],
-                DockerRuntimeClient::FETCH_RESPONSE
+                DockerClient::FETCH_RESPONSE
             )
             ?->getBody()
             ->getContents() ?? '';
@@ -206,10 +204,12 @@ class StartedGenericContainer implements StartedTestContainer
          * For some reason, in the latest Docker releases, at this moment, the container might not be fully started.
          * This can lead to issues when trying to retrieve the ports.
          * TODO: find a better strategy to ensure the container is fully started or run in a loop until it is ready.
-         * For the loop $this->inspect() shouldn't be cached.
          */
         usleep(300 * 1000);
-        $ports = $this->inspect()?->getNetworkSettings()?->getPorts();
+        /** @var ContainersIdJsonGetResponse200 | null $inspectResponse */
+        $inspectResponse = $this->dockerClient->containerInspect($this->id);
+        $this->inspectResponse = $inspectResponse;
+        $ports = $inspectResponse?->getNetworkSettings()?->getPorts();
 
         if ($ports === null) {
             throw new RuntimeException('Failed to get ports from container');

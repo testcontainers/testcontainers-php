@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace Testcontainers\Container;
 
-use Docker\API\Exception\ContainerCreateNotFoundException;
-use Docker\API\Model\ContainerCreateResponse;
-use Docker\API\Model\ContainersCreatePostBody;
-use Docker\API\Model\EndpointSettings;
-use Docker\API\Model\HealthConfig;
-use Docker\API\Model\HostConfig;
-use Docker\API\Model\Mount;
-use Docker\API\Model\NetworkingConfig;
-use Docker\API\Model\PortBinding;
-use Docker\Docker;
-use Docker\Stream\CreateImageStream;
+use Testcontainers\Docker\DockerClient;
+use Testcontainers\Docker\Exception\ContainerCreateNotFoundException;
+use Testcontainers\Docker\Model\ContainerCreateResponse;
+use Testcontainers\Docker\Model\ContainersCreatePostBody;
+use Testcontainers\Docker\Model\EndpointSettings;
+use Testcontainers\Docker\Model\HealthConfig;
+use Testcontainers\Docker\Model\HostConfig;
+use Testcontainers\Docker\Model\Mount;
+use Testcontainers\Docker\Model\NetworkingConfig;
+use Testcontainers\Docker\Model\PortBinding;
+use Testcontainers\Docker\Stream\CreateImageStream;
 use InvalidArgumentException;
 use RuntimeException;
 use Testcontainers\ContainerClient\DockerContainerClient;
@@ -28,7 +28,7 @@ use Testcontainers\Utils\DockerAuthConfig;
 
 class GenericContainer implements TestContainer
 {
-    protected Docker $dockerClient;
+    protected DockerClient $dockerClient;
 
     protected string $image;
 
@@ -370,10 +370,7 @@ class GenericContainer implements TestContainer
             $queryParams['copyUIDGID'] = 'true';
         }
 
-        /**
-         * TODO: should be improved. Currently without using dummy $result or FETCH_RESPONSE, the request is failing.
-         * Probably an issue with the beluga-php/docker-php client library.
-         * */
+        // Ensure the request body is fully sent and response is consumed.
         $result = $this->dockerClient->putContainerArchive(
             $this->id,
             $handle,
@@ -401,6 +398,14 @@ class GenericContainer implements TestContainer
 
         $hostConfig = $this->createHostConfig();
         $containerCreatePostBody->setHostConfig($hostConfig);
+
+        if ($this->exposedPorts !== []) {
+            $exposed = [];
+            foreach ($this->exposedPorts as $port) {
+                $exposed[$port] = new \stdClass();
+            }
+            $containerCreatePostBody->setExposedPorts($exposed);
+        }
 
         if ($this->entryPoint !== null) {
             $containerCreatePostBody->setEntrypoint([$this->entryPoint]);
@@ -475,7 +480,7 @@ class GenericContainer implements TestContainer
     {
         [$fromImage, $tag] = explode(':', $this->image) + [1 => 'latest'];
 
-        // Build headers for the request
+        // Build headers for the request (curl-style list format)
         $headers = [];
 
         // Try to get authentication for the registry
@@ -488,7 +493,7 @@ class GenericContainer implements TestContainer
                 'username' => $credentials['username'],
                 'password' => $credentials['password'],
             ];
-            $headers['X-Registry-Auth'] = base64_encode(json_encode($authData, JSON_THROW_ON_ERROR));
+            $headers[] = 'X-Registry-Auth: ' . base64_encode(json_encode($authData, JSON_THROW_ON_ERROR));
         }
 
         /** @var CreateImageStream $imageCreateResponse */
