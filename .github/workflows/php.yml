@@ -53,10 +53,26 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            docker_host: unix:///var/run/docker.sock
+          - os: windows-latest
+            docker_host: tcp://localhost:2375
 
     steps:
     - uses: actions/checkout@v4
-    
+
+    - name: Configure Docker to use TCP (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        # Configure Docker daemon to listen on TCP
+        $dockerConfig = @{ hosts = @("tcp://0.0.0.0:2375", "npipe:////./pipe/docker_engine") }
+        $dockerConfig | ConvertTo-Json | Set-Content -Path "C:\ProgramData\docker\config\daemon.json"
+        Restart-Service docker
+        # Wait for Docker to be ready
+        Start-Sleep -Seconds 5
+      shell: pwsh
+
     - name: Setup PHP
       uses: shivammathur/setup-php@v2
       with:
@@ -68,3 +84,5 @@ jobs:
 
     - name: Run test suite
       run: composer run integration
+      env:
+        DOCKER_HOST: ${{ matrix.docker_host }}
