@@ -52,7 +52,8 @@
         "integration": "paratest tests/ --bootstrap vendor/autoload.php -f",
         "cs": "php-cs-fixer fix --dry-run",
         "cs:fix": "php-cs-fixer fix",
-        "phpstan": "phpstan analyse --memory-limit=256M"
+        "phpstan": "phpstan analyse --memory-limit=256M",
+        "docs:serve": "docker compose up"
     },
     "config": {
         "allow-plugins": {
