@@ -42,7 +42,6 @@ nav:
   - Quickstart:
       - Install: quickstart/install.md
       - Usage: quickstart/usage.md
-      - Logging: quickstart/logging.md
   - Features:
       - Containers: features/containers.md
       - Wait strategies: features/wait-strategies.md
