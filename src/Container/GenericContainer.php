@@ -96,6 +96,9 @@ class GenericContainer implements TestContainer
      */
     protected array $mounts = [];
 
+    /** @var array<string, string> */
+    protected array $tmpfs = [];
+
     /** @var array<string> List of exposed ports in the format ['8080/tcp'] */
     protected array $exposedPorts = [];
 
@@ -217,6 +220,13 @@ class GenericContainer implements TestContainer
             'source' => $localPath,
             'target' => $containerPath,
         ]);
+
+        return $this;
+    }
+
+    public function withTmpfs(string $containerPath, string $options = 'rw,noexec'): static
+    {
+        $this->tmpfs[$containerPath] = $options;
 
         return $this;
     }
@@ -458,7 +468,7 @@ class GenericContainer implements TestContainer
          * the API will throw ContainerCreateBadRequestException: bad parameter.
          * Until it will be checked and fixed, we just return null if these properties are not set.
          * */
-        if ($this->exposedPorts === [] && !$this->isPrivileged && $this->mounts === []) {
+        if ($this->exposedPorts === [] && !$this->isPrivileged && $this->mounts === [] && $this->tmpfs === []) {
             return null;
         }
 
@@ -477,6 +487,10 @@ class GenericContainer implements TestContainer
 
         if ($this->mounts !== []) {
             $hostConfig->setMounts($this->mounts);
+        }
+
+        if ($this->tmpfs !== []) {
+            $hostConfig->setTmpfs($this->tmpfs);
         }
 
         return $hostConfig;

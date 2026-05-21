@@ -291,6 +291,19 @@ class GenericContainerTest extends TestCase
         $container->stop();
     }
 
+    public function testShouldSetTmpfs(): void
+    {
+        $container = (new GenericContainer('alpine'))
+            ->withTmpfs('/mnt/tmpfs')
+            ->withCommand(['tail', '-f', '/dev/null'])
+            ->start();
+
+        $result = $container->exec(['stat', '-f', '-c', '%T', '/mnt/tmpfs']);
+        self::assertSame('tmpfs', $result);
+
+        $container->stop();
+    }
+
     public function testShouldSetPrivilegedMode(): void
     {
         $container = (new GenericContainer('alpine'))

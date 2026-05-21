@@ -43,6 +43,8 @@ interface TestContainer
 
     public function withMount(string $localPath, string $containerPath): static;
 
+    public function withTmpfs(string $containerPath, string $options = 'rw,noexec'): static;
+
     public function withName(string $name): static;
 
     public function withNetwork(string $networkName): static;
