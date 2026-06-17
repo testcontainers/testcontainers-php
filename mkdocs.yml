@@ -54,3 +54,4 @@ nav:
       - PostgreSQL: modules/postgresql.md
       - Redis: modules/redis.md
   - Configuration: configuration.md
+  - Troubleshooting: troubleshooting.md
