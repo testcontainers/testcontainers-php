@@ -1,0 +1,57 @@
+site_name: Testcontainers for PHP
+site_url: https://php.testcontainers.org
+repo_name: testcontainers-php
+repo_url: https://github.com/testcontainers/testcontainers-php
+edit_uri: edit/main/docs/
+
+theme:
+  name: "material"
+  custom_dir: "docs/site/theme"
+  palette:
+    scheme: testcontainers
+  font:
+    text: Roboto
+    code: Roboto Mono
+  logo: "site/logo.svg"
+  favicon: "site/favicon.ico"
+  features:
+    - content.code.copy
+
+extra_css:
+  - "site/css/extra.css"
+  - "site/css/tc-header.css"
+
+plugins:
+  - search
+  - codeinclude
+  - markdownextradata
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      linenums: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Quickstart:
+      - Install: quickstart/install.md
+      - Usage: quickstart/usage.md
+  - Features:
+      - Containers: features/containers.md
+      - Wait strategies: features/wait-strategies.md
+      - Networking: features/networking.md
+  - Modules:
+      - MariaDB: modules/mariadb.md
+      - MongoDB: modules/mongodb.md
+      - MySQL: modules/mysql.md
+      - OpenSearch: modules/opensearch.md
+      - PostgreSQL: modules/postgresql.md
+      - Redis: modules/redis.md
+  - Configuration: configuration.md
+  - Troubleshooting: troubleshooting.md
