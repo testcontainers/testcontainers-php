@@ -6,14 +6,15 @@
     <a href="https://golang.testcontainers.org/" class="card-grid-item"><img src="/site/language-logos/go.svg" alt="Go"/>Go</a>
     <a href="https://dotnet.testcontainers.org/" class="card-grid-item"><img src="/site/language-logos/dotnet.svg" alt=".NET"/>.NET</a>
     <a href="https://node.testcontainers.org/" class="card-grid-item"><img src="/site/language-logos/nodejs.svg" alt="Node.js"/>Node.js</a>
-    <a href="https://cljdoc.org/d/clj-test-containers/clj-test-containers/0.7.4/doc/readme/" class="card-grid-item"><img src="/site/language-logos/clojure.svg" alt="Clojure"/>Clojure</a>
-    <a href="https://github.com/testcontainers/testcontainers-elixir/" class="card-grid-item"><img src="/site/language-logos/elixir.svg" alt="Elixir"/>Elixir</a>
-    <a href="https://github.com/testcontainers/testcontainers-hs/" class="card-grid-item"><img src="/site/language-logos/haskell.svg" alt="Haskell"/>Haskell</a>
     <a href="https://testcontainers-python.readthedocs.io/en/latest/" class="card-grid-item"><img src="/site/language-logos/python.svg" alt="Python"/>Python</a>
+    <a href="https://rust.testcontainers.org/" class="card-grid-item"><img src="/site/language-logos/rust.svg" alt="Rust"/>Rust</a>
     <a href="https://github.com/testcontainers/testcontainers-ruby/" class="card-grid-item"><img src="/site/language-logos/ruby.svg" alt="Ruby"/>Ruby</a>
-    <a href="https://docs.rs/testcontainers/latest/testcontainers/" class="card-grid-item"><img src="/site/language-logos/rust.svg" alt="Rust"/>Rust</a>
     <a class="card-grid-item"><img src="/site/language-logos/php.svg" alt="PHP"/>PHP</a>
-    <a href="https://github.com/testcontainers/testcontainers-scala/" class="card-grid-item"><img style="width:30px; height:30px" src="/site/language-logos/scala.svg" alt="Scala"/>Scala</a>
+    <a href="https://github.com/testcontainers/testcontainers-hs/" class="card-grid-item"><img src="/site/language-logos/haskell.svg" alt="Haskell"/>Haskell</a>
+    <a href="https://cljdoc.org/d/clj-test-containers/clj-test-containers/" class="card-grid-item"><img src="/site/language-logos/clojure.svg" alt="Clojure"/>Clojure</a>
+    <a href="https://github.com/testcontainers/testcontainers-elixir/" class="card-grid-item"><img src="/site/language-logos/elixir.svg" alt="Elixir"/>Elixir</a>
+    <a href="https://github.com/testcontainers/testcontainers-scala/" class="card-grid-item"><img src="/site/language-logos/scala.svg" alt="Scala"/>Scala</a>
+    <a href="https://github.com/testcontainers/testcontainers-native" class="card-grid-item"><img src="/site/language-logos/c.svg" alt="Native"/>Native</a>
 </div>
 
 ## About
