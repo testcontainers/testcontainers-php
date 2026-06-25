@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace Testcontainers\ContainerClient;
 
+use Composer\InstalledVersions;
 use Docker\Docker as DockerClient;
+use Docker\DockerClientFactory;
+use Http\Client\Common\Plugin\HeaderDefaultsPlugin;
+use Http\Client\Common\PluginClient;
 
 class DockerContainerClient
 {
@@ -26,7 +30,16 @@ class DockerContainerClient
     public static function getDockerClient(): DockerClient
     {
         if (self::$dockerClient === null) {
-            self::$dockerClient = DockerClient::create();
+            $version = InstalledVersions::getPrettyVersion('testcontainers/testcontainers') ?? 'unknown';
+
+            $baseHttpClient = DockerClientFactory::createFromEnv();
+
+            $httpClient = new PluginClient(
+                $baseHttpClient,
+                [new HeaderDefaultsPlugin(['User-Agent' => 'tc-php/' . $version])]
+            );
+
+            self::$dockerClient = DockerClient::create($httpClient);
         }
 
         return self::$dockerClient;
