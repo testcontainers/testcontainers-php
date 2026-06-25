@@ -4,55 +4,30 @@ declare(strict_types=1);
 
 namespace Testcontainers\Tests\Unit\ContainerClient;
 
-use Composer\InstalledVersions;
 use Docker\Docker as DockerClient;
 use Http\Client\Common\Plugin\HeaderDefaultsPlugin;
 use Http\Client\Common\PluginClient;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Client\ClientInterface;
 use Testcontainers\ContainerClient\DockerContainerClient;
 
 /**
- * Test subclass that forces resolveVersion() to return 'unknown' by simulating
- * the OutOfBoundsException fallback path, and captures the PluginClient built
- * during getDockerClient() so tests can inspect it without a Docker socket.
+ * Test subclass used by testUserAgentHeaderContainsUnknownWhenVersionResolutionFails.
+ *
+ * Overrides resolveVersion() to pass a non-existent package name to the parent
+ * implementation, exercising the OutOfBoundsException catch branch in the
+ * production resolveVersion() body. getDockerClient() is inherited unmodified
+ * from DockerContainerClient — the only change is the version source.
  */
-class DockerContainerClientWithUnknownVersion extends DockerContainerClient
+class DockerContainerClientWithBrokenVersion extends DockerContainerClient
 {
-    /** @var PluginClient|null The PluginClient captured during the last getDockerClient() call */
-    public static ?PluginClient $capturedHttpClient = null;
-
-    protected static function resolveVersion(): string
+    protected static function resolveVersion(string $package = 'testcontainers/testcontainers'): string
     {
-        // Exercise the catch branch: getPrettyVersion throws OutOfBoundsException
-        // for any package that is not installed.
-        try {
-            InstalledVersions::getPrettyVersion('testcontainers/this-package-does-not-exist');
-        } catch (\OutOfBoundsException) {
-            return 'unknown';
-        }
-
-        return 'unknown';
-    }
-
-    public static function getDockerClient(): DockerClient
-    {
-        $version = static::resolveVersion();
-
-        $baseHttpClient = \Docker\DockerClientFactory::createFromEnv();
-
-        $httpClient = new PluginClient(
-            $baseHttpClient,
-            [new \Http\Client\Common\Plugin\HeaderDefaultsPlugin(['User-Agent' => 'tc-php/' . $version])]
-        );
-
-        self::$capturedHttpClient = $httpClient;
-
-        // Build a DockerClient instance without invoking the constructor (no socket needed).
-        /** @var DockerClient $stub */
-        $stub = (new \ReflectionClass(DockerClient::class))->newInstanceWithoutConstructor();
-        DockerContainerClient::setDockerClient($stub);
-
-        return $stub;
+        // Delegates to the real production resolveVersion() with an unknown package.
+        // The production catch(\OutOfBoundsException) block must catch the exception
+        // and return 'unknown'. If that catch block is removed, an unhandled
+        // OutOfBoundsException propagates and the test fails.
+        return parent::resolveVersion('testcontainers/this-package-does-not-exist');
     }
 }
 
@@ -64,23 +39,99 @@ class DockerContainerClientTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->resetSingleton();
-        DockerContainerClientWithUnknownVersion::$capturedHttpClient = null;
+        $this->resetState();
     }
 
     protected function tearDown(): void
     {
-        $this->resetSingleton();
-        DockerContainerClientWithUnknownVersion::$capturedHttpClient = null;
+        $this->resetState();
         parent::tearDown();
     }
 
-    private function resetSingleton(): void
+    private function resetState(): void
     {
         $reflection = new \ReflectionClass(DockerContainerClient::class);
         $property = $reflection->getProperty('dockerClient');
         $property->setAccessible(true);
         $property->setValue(null, null);
+
+        DockerContainerClient::resetFactories();
+    }
+
+    // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Injects factory stubs so getDockerClient() runs its full production body
+     * (version resolution → PluginClient wrapping → docker-client factory) without
+     * opening a Docker socket. The injected $dockerClientFactory receives the real
+     * PluginClient that production code constructs, providing a handle to inspect it.
+     *
+     * @param PluginClient|null $capturedHttpClient Out-param set to the PluginClient passed to the docker factory.
+     */
+    private function injectNoSocketFactories(?PluginClient &$capturedHttpClient = null): void
+    {
+        $mockPsrClient = $this->createMock(ClientInterface::class);
+
+        DockerContainerClient::setFactories(
+            static function () use ($mockPsrClient): ClientInterface {
+                return $mockPsrClient;
+            },
+            static function (ClientInterface $httpClient) use (&$capturedHttpClient): DockerClient {
+                // $httpClient here is the PluginClient wrapping the UA plugin — capture it.
+                assert($httpClient instanceof PluginClient);
+                $capturedHttpClient = $httpClient;
+
+                return (new \ReflectionClass(DockerClient::class))->newInstanceWithoutConstructor();
+            }
+        );
+    }
+
+    /**
+     * Returns the private $plugins array from a PluginClient via reflection.
+     *
+     * @return \Http\Client\Common\Plugin[]
+     */
+    private function getPlugins(PluginClient $client): array
+    {
+        $prop = (new \ReflectionClass(PluginClient::class))->getProperty('plugins');
+        $prop->setAccessible(true);
+
+        /** @var \Http\Client\Common\Plugin[] $plugins */
+        $plugins = $prop->getValue($client);
+
+        return $plugins;
+    }
+
+    /**
+     * Finds the first HeaderDefaultsPlugin in a PluginClient's plugin stack, or null.
+     */
+    private function findHeaderDefaultsPlugin(PluginClient $client): ?HeaderDefaultsPlugin
+    {
+        foreach ($this->getPlugins($client) as $plugin) {
+            if ($plugin instanceof HeaderDefaultsPlugin) {
+                return $plugin;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Returns the $headers array stored inside a HeaderDefaultsPlugin via reflection.
+     *
+     * @return array<string, string>
+     */
+    private function getHeadersFromPlugin(HeaderDefaultsPlugin $plugin): array
+    {
+        $prop = (new \ReflectionClass(HeaderDefaultsPlugin::class))->getProperty('headers');
+        $prop->setAccessible(true);
+
+        /** @var array<string, string> $headers */
+        $headers = $prop->getValue($plugin);
+
+        return $headers;
     }
 
     // -------------------------------------------------------------------------
@@ -116,9 +167,8 @@ class DockerContainerClientTest extends TestCase
     // resolveVersion() — exercises production version-resolution logic
     // -------------------------------------------------------------------------
 
-    public function testResolveVersionHasExpectedFormat(): void
+    public function testResolveVersionReturnsNonEmptyStringWithoutBuildMetadata(): void
     {
-        // Call the real protected static method via reflection.
         $method = (new \ReflectionClass(DockerContainerClient::class))
             ->getMethod('resolveVersion');
         $method->setAccessible(true);
@@ -126,11 +176,23 @@ class DockerContainerClientTest extends TestCase
         /** @var string $version */
         $version = $method->invoke(null);
 
-        $this->assertMatchesRegularExpression(
-            '/^(tc-php\/.+|unknown|\S+)$/',
+        $this->assertNotEmpty($version, 'resolveVersion() must return a non-empty string');
+        $this->assertStringNotContainsString(
+            '+no-version-set',
             $version,
-            'resolveVersion() must return a non-empty string'
+            'resolveVersion() must strip the +no-version-set build-metadata suffix'
         );
+    }
+
+    public function testUserAgentVersionDoesNotContainBuildMetadataSuffix(): void
+    {
+        $method = (new \ReflectionClass(DockerContainerClient::class))
+            ->getMethod('resolveVersion');
+        $method->setAccessible(true);
+
+        /** @var string $version */
+        $version = $method->invoke(null);
+
         $this->assertStringNotContainsString(
             '+no-version-set',
             $version,
@@ -140,42 +202,22 @@ class DockerContainerClientTest extends TestCase
 
     public function testOutOfBoundsExceptionFallsBackToUnknown(): void
     {
-        // DockerContainerClientWithUnknownVersion::resolveVersion() exercises the
-        // catch(\OutOfBoundsException) branch in the production resolveVersion() body
-        // by calling getPrettyVersion() with a non-existent package name.
-        // Calling getDockerClient() on the subclass triggers the real resolveVersion()
-        // override and injects the result into the singleton via setDockerClient().
-        DockerContainerClientWithUnknownVersion::getDockerClient();
+        // Call the real production resolveVersion() with a package name that is not
+        // installed. InstalledVersions::getPrettyVersion() throws OutOfBoundsException;
+        // the production catch block converts that to 'unknown'.
+        // If the catch block is removed from production code, this call throws an
+        // unhandled OutOfBoundsException and the test fails — it is not self-testing.
+        $method = (new \ReflectionClass(DockerContainerClient::class))
+            ->getMethod('resolveVersion');
+        $method->setAccessible(true);
 
-        $capturedClient = DockerContainerClientWithUnknownVersion::$capturedHttpClient;
-        $this->assertInstanceOf(PluginClient::class, $capturedClient);
+        /** @var string $result */
+        $result = $method->invoke(null, 'testcontainers/this-package-does-not-exist');
 
-        // Walk the plugin stack to find the HeaderDefaultsPlugin.
-        $pluginsProperty = (new \ReflectionClass(PluginClient::class))->getProperty('plugins');
-        $pluginsProperty->setAccessible(true);
-        /** @var \Http\Client\Common\Plugin[] $plugins */
-        $plugins = $pluginsProperty->getValue($capturedClient);
-
-        $headerPlugin = null;
-        foreach ($plugins as $plugin) {
-            if ($plugin instanceof HeaderDefaultsPlugin) {
-                $headerPlugin = $plugin;
-                break;
-            }
-        }
-
-        $this->assertInstanceOf(HeaderDefaultsPlugin::class, $headerPlugin);
-
-        $headersProperty = (new \ReflectionClass(HeaderDefaultsPlugin::class))->getProperty('headers');
-        $headersProperty->setAccessible(true);
-        /** @var array<string, string> $headers */
-        $headers = $headersProperty->getValue($headerPlugin);
-
-        $this->assertArrayHasKey('User-Agent', $headers);
         $this->assertSame(
-            'tc-php/unknown',
-            $headers['User-Agent'],
-            'When version resolution falls back to unknown, User-Agent must be tc-php/unknown'
+            'unknown',
+            $result,
+            'resolveVersion() must return "unknown" when the package is not found'
         );
     }
 
@@ -185,27 +227,26 @@ class DockerContainerClientTest extends TestCase
 
     public function testHeaderDefaultsPluginIsConfiguredWithUserAgentHeader(): void
     {
-        // Use the capturing subclass to exercise the production PluginClient-building
-        // code path (resolveVersion + PluginClient construction) without needing a
-        // live Docker socket.
-        DockerContainerClientWithUnknownVersion::getDockerClient();
+        // Inject no-socket factories so the real production getDockerClient() body runs:
+        //   1. static::resolveVersion() — real production code, no change
+        //   2. new PluginClient(..., [new HeaderDefaultsPlugin([...])]) — real production code
+        //   3. self::createDockerClient($httpClient) — calls our injected factory, which
+        //      captures the PluginClient and returns a no-constructor stub
+        //
+        // Removing HeaderDefaultsPlugin from getDockerClient() causes this test to fail
+        // because $capturedHttpClient would then have no HeaderDefaultsPlugin in its stack.
+        $capturedHttpClient = null;
+        $this->injectNoSocketFactories($capturedHttpClient);
 
-        $capturedClient = DockerContainerClientWithUnknownVersion::$capturedHttpClient;
-        $this->assertInstanceOf(PluginClient::class, $capturedClient);
+        DockerContainerClient::getDockerClient();
 
-        // Walk the plugin stack.
-        $pluginsProperty = (new \ReflectionClass(PluginClient::class))->getProperty('plugins');
-        $pluginsProperty->setAccessible(true);
-        /** @var \Http\Client\Common\Plugin[] $plugins */
-        $plugins = $pluginsProperty->getValue($capturedClient);
+        $this->assertInstanceOf(
+            PluginClient::class,
+            $capturedHttpClient,
+            'The docker client factory must receive a PluginClient'
+        );
 
-        $headerPlugin = null;
-        foreach ($plugins as $plugin) {
-            if ($plugin instanceof HeaderDefaultsPlugin) {
-                $headerPlugin = $plugin;
-                break;
-            }
-        }
+        $headerPlugin = $this->findHeaderDefaultsPlugin($capturedHttpClient);
 
         $this->assertInstanceOf(
             HeaderDefaultsPlugin::class,
@@ -213,10 +254,7 @@ class DockerContainerClientTest extends TestCase
             'HeaderDefaultsPlugin must be present in the PluginClient plugin stack'
         );
 
-        $headersProperty = (new \ReflectionClass(HeaderDefaultsPlugin::class))->getProperty('headers');
-        $headersProperty->setAccessible(true);
-        /** @var array<string, string> $headers */
-        $headers = $headersProperty->getValue($headerPlugin);
+        $headers = $this->getHeadersFromPlugin($headerPlugin);
 
         $this->assertArrayHasKey('User-Agent', $headers);
         $this->assertMatchesRegularExpression(
@@ -226,20 +264,41 @@ class DockerContainerClientTest extends TestCase
         );
     }
 
-    public function testUserAgentVersionDoesNotContainBuildMetadataSuffix(): void
+    public function testUserAgentHeaderContainsUnknownWhenVersionResolutionFails(): void
     {
-        // Call the real protected static resolveVersion() and assert the suffix is stripped.
-        $method = (new \ReflectionClass(DockerContainerClient::class))
-            ->getMethod('resolveVersion');
-        $method->setAccessible(true);
+        // Injects no-socket factories (same pattern as above), then calls
+        // DockerContainerClientWithBrokenVersion::getDockerClient() which inherits the
+        // production getDockerClient() body unchanged but overrides resolveVersion() to
+        // pass a non-existent package to parent::resolveVersion(), triggering the real
+        // OutOfBoundsException catch branch. The captured PluginClient must carry
+        // User-Agent: tc-php/unknown.
+        $capturedHttpClient = null;
+        $mockPsrClient = $this->createMock(ClientInterface::class);
 
-        /** @var string $version */
-        $version = $method->invoke(null);
+        DockerContainerClient::setFactories(
+            static function () use ($mockPsrClient): ClientInterface {
+                return $mockPsrClient;
+            },
+            static function (ClientInterface $httpClient) use (&$capturedHttpClient): DockerClient {
+                assert($httpClient instanceof PluginClient);
+                $capturedHttpClient = $httpClient;
 
-        $this->assertStringNotContainsString(
-            '+no-version-set',
-            $version,
-            'resolveVersion() must strip the +no-version-set build-metadata suffix'
+                return (new \ReflectionClass(DockerClient::class))->newInstanceWithoutConstructor();
+            }
+        );
+
+        DockerContainerClientWithBrokenVersion::getDockerClient();
+
+        $this->assertInstanceOf(PluginClient::class, $capturedHttpClient);
+
+        $headerPlugin = $this->findHeaderDefaultsPlugin($capturedHttpClient);
+        $this->assertInstanceOf(HeaderDefaultsPlugin::class, $headerPlugin);
+
+        $headers = $this->getHeadersFromPlugin($headerPlugin);
+        $this->assertSame(
+            'tc-php/unknown',
+            $headers['User-Agent'],
+            'When version resolution falls back to unknown, User-Agent must be tc-php/unknown'
         );
     }
 }
