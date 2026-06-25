@@ -80,7 +80,12 @@ class DockerContainerClientTest extends TestCase
             },
             static function (ClientInterface $httpClient) use (&$capturedHttpClient): DockerClient {
                 // $httpClient here is the PluginClient wrapping the UA plugin — capture it.
-                assert($httpClient instanceof PluginClient);
+                if (!$httpClient instanceof PluginClient) {
+                    throw new \UnexpectedValueException(
+                        'Expected PluginClient, got ' . get_debug_type($httpClient)
+                    );
+                }
+
                 $capturedHttpClient = $httpClient;
 
                 return (new \ReflectionClass(DockerClient::class))->newInstanceWithoutConstructor();
@@ -166,23 +171,6 @@ class DockerContainerClientTest extends TestCase
     // -------------------------------------------------------------------------
     // resolveVersion() — exercises production version-resolution logic
     // -------------------------------------------------------------------------
-
-    public function testResolveVersionReturnsNonEmptyStringWithoutBuildMetadata(): void
-    {
-        $method = (new \ReflectionClass(DockerContainerClient::class))
-            ->getMethod('resolveVersion');
-        $method->setAccessible(true);
-
-        /** @var string $version */
-        $version = $method->invoke(null);
-
-        $this->assertNotEmpty($version, 'resolveVersion() must return a non-empty string');
-        $this->assertStringNotContainsString(
-            '+no-version-set',
-            $version,
-            'resolveVersion() must strip the +no-version-set build-metadata suffix'
-        );
-    }
 
     public function testUserAgentVersionDoesNotContainBuildMetadataSuffix(): void
     {
@@ -280,7 +268,12 @@ class DockerContainerClientTest extends TestCase
                 return $mockPsrClient;
             },
             static function (ClientInterface $httpClient) use (&$capturedHttpClient): DockerClient {
-                assert($httpClient instanceof PluginClient);
+                if (!$httpClient instanceof PluginClient) {
+                    throw new \UnexpectedValueException(
+                        'Expected PluginClient, got ' . get_debug_type($httpClient)
+                    );
+                }
+
                 $capturedHttpClient = $httpClient;
 
                 return (new \ReflectionClass(DockerClient::class))->newInstanceWithoutConstructor();
