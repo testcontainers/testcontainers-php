@@ -16,7 +16,8 @@
     "require": {
         "ext-curl": "*",
         "php": ">= 8.1",
-        "beluga-php/docker-php": "^1.45"
+        "beluga-php/docker-php": "^1.45",
+        "php-http/client-common": "^2.7"
     },
     "require-dev": {
         "ext-pdo": "*",

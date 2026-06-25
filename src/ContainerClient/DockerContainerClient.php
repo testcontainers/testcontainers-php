@@ -30,7 +30,13 @@ class DockerContainerClient
     public static function getDockerClient(): DockerClient
     {
         if (self::$dockerClient === null) {
-            $version = InstalledVersions::getPrettyVersion('testcontainers/testcontainers') ?? 'unknown';
+            try {
+                $version = InstalledVersions::getPrettyVersion('testcontainers/testcontainers') ?? 'unknown';
+            } catch (\OutOfBoundsException) {
+                $version = 'unknown';
+            }
+
+            $version = str_replace('+no-version-set', '', $version);
 
             $baseHttpClient = DockerClientFactory::createFromEnv();
 
@@ -47,6 +53,7 @@ class DockerContainerClient
 
     /**
      * Injects a DockerClient instance for testing or special use cases.
+     * Note: clients injected via this method will not have the tc-php User-Agent header applied automatically.
      *
      * @param DockerClient $client The DockerClient instance to set.
      */
