@@ -30,13 +30,7 @@ class DockerContainerClient
     public static function getDockerClient(): DockerClient
     {
         if (self::$dockerClient === null) {
-            try {
-                $version = InstalledVersions::getPrettyVersion('testcontainers/testcontainers') ?? 'unknown';
-            } catch (\OutOfBoundsException) {
-                $version = 'unknown';
-            }
-
-            $version = str_replace('+no-version-set', '', $version);
+            $version = static::resolveVersion();
 
             $baseHttpClient = DockerClientFactory::createFromEnv();
 
@@ -49,6 +43,24 @@ class DockerContainerClient
         }
 
         return self::$dockerClient;
+    }
+
+    /**
+     * Resolves the package version string used in the User-Agent header.
+     *
+     * Returns the pretty version of the installed package, with the
+     * '+no-version-set' build-metadata suffix stripped. Falls back to
+     * 'unknown' if the package is not found in the Composer runtime data.
+     */
+    protected static function resolveVersion(): string
+    {
+        try {
+            $version = InstalledVersions::getPrettyVersion('testcontainers/testcontainers') ?? 'unknown';
+        } catch (\OutOfBoundsException) {
+            $version = 'unknown';
+        }
+
+        return str_replace('+no-version-set', '', $version);
     }
 
     /**
