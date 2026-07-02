@@ -338,11 +338,11 @@ class GenericContainer implements TestContainer
             return $this->start();
         }
 
-        $this->dockerClient->containerStart($this->id);
-
         if ($this->filesToCopy !== [] || $this->directoriesToCopy !== [] || $this->contentsToCopy !== []) {
             $this->copyToContainer();
         }
+
+        $this->dockerClient->containerStart($this->id);
 
         $startedContainer = new StartedGenericContainer($this->id);
         $this->waitStrategy->wait($startedContainer);
