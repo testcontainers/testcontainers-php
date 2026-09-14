@@ -70,8 +70,8 @@ class StartedGenericContainer implements StartedTestContainer
 
         $contents = $this->dockerClient
             ->execStart($this->lastExecId, $startConfig, Client::FETCH_RESPONSE)
-            ?->getBody()
-            ->getContents() ?? '';
+            ->getBody()
+            ->getContents();
 
         return $this->sanitizeOutput($contents);
     }
@@ -99,8 +99,8 @@ class StartedGenericContainer implements StartedTestContainer
                 ['stdout' => true, 'stderr' => true],
                 DockerRuntimeClient::FETCH_RESPONSE
             )
-            ?->getBody()
-            ->getContents() ?? '';
+            ->getBody()
+            ->getContents();
 
         /**
          * @var string|false $converted
@@ -131,6 +131,9 @@ class StartedGenericContainer implements StartedTestContainer
     {
         $ports = (array) $this->getBoundPorts();
         $port = array_key_first($ports);
+        if ($port === null) {
+            throw new RuntimeException('Failed to get first mapped port for container');
+        }
         /** @var PortBinding | null  $firstPortBinding */
         $firstPortBinding = $ports[$port][0] ?? null;
         $firstMappedPort = $firstPortBinding?->getHostPort();

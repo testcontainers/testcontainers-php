@@ -23,7 +23,7 @@ class PortNormalizer
         }
 
         // Check if the port specification already includes a protocol
-        if (is_string($port) && !str_contains($port, '/')) {
+        if (!str_contains($port, '/')) {
             return "{$port}/{$internetProtocol->toDockerNotation()}";
         }
 

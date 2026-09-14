@@ -92,7 +92,7 @@ class HostResolverTest extends TestCase
 
         // Build a fake network inspection response:
         $fakeConfig = new class () {
-            public function getGateway(): ?string
+            public function getGateway(): string
             {
                 return '172.0.0.1';
             }
@@ -214,7 +214,7 @@ class HostResolverTest extends TestCase
             {
                 return null;
             }
-            protected function findDefaultGateway(): ?string
+            protected function findDefaultGateway(): string
             {
                 return '172.0.0.2';
             }
