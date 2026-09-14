@@ -215,11 +215,11 @@ class GenericContainer implements TestContainer
 
     public function withMount(string $localPath, string $containerPath): static
     {
-        $this->mounts[] = new Mount([
-            'type' => 'bind',
-            'source' => $localPath,
-            'target' => $containerPath,
-        ]);
+        $mount = new Mount();
+        $mount->setType('bind');
+        $mount->setSource($localPath);
+        $mount->setTarget($containerPath);
+        $this->mounts[] = $mount;
 
         return $this;
     }
