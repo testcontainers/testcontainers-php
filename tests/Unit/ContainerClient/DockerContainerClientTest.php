@@ -52,7 +52,6 @@ class DockerContainerClientTest extends TestCase
     {
         $reflection = new \ReflectionClass(DockerContainerClient::class);
         $property = $reflection->getProperty('dockerClient');
-        $property->setAccessible(true);
         $property->setValue(null, null);
 
         DockerContainerClient::resetFactories();
@@ -101,7 +100,6 @@ class DockerContainerClientTest extends TestCase
     private function getPlugins(PluginClient $client): array
     {
         $prop = (new \ReflectionClass(PluginClient::class))->getProperty('plugins');
-        $prop->setAccessible(true);
 
         /** @var \Http\Client\Common\Plugin[] $plugins */
         $plugins = $prop->getValue($client);
@@ -131,7 +129,6 @@ class DockerContainerClientTest extends TestCase
     private function getHeadersFromPlugin(HeaderDefaultsPlugin $plugin): array
     {
         $prop = (new \ReflectionClass(HeaderDefaultsPlugin::class))->getProperty('headers');
-        $prop->setAccessible(true);
 
         /** @var array<string, string> $headers */
         $headers = $prop->getValue($plugin);
@@ -176,7 +173,6 @@ class DockerContainerClientTest extends TestCase
     {
         $method = (new \ReflectionClass(DockerContainerClient::class))
             ->getMethod('resolveVersion');
-        $method->setAccessible(true);
 
         /** @var string $version */
         $version = $method->invoke(null);
@@ -197,7 +193,6 @@ class DockerContainerClientTest extends TestCase
         // unhandled OutOfBoundsException and the test fails — it is not self-testing.
         $method = (new \ReflectionClass(DockerContainerClient::class))
             ->getMethod('resolveVersion');
-        $method->setAccessible(true);
 
         /** @var string $result */
         $result = $method->invoke(null, 'testcontainers/this-package-does-not-exist');

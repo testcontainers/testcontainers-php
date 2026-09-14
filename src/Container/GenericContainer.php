@@ -66,7 +66,7 @@ class GenericContainer implements TestContainer
 
     protected ?string $networkName = null;
 
-    /** @var array<string> */
+    /** @var list<string> */
     protected array $aliases = [];
 
     protected ?string $user = null;
@@ -92,7 +92,7 @@ class GenericContainer implements TestContainer
     protected const MAX_START_ATTEMPTS = 2;
 
     /**
-     * @var array<Mount>
+     * @var list<Mount>
      */
     protected array $mounts = [];
 
@@ -290,7 +290,7 @@ class GenericContainer implements TestContainer
      */
     public function withAliases(array $aliases): static
     {
-        $this->aliases = $aliases;
+        $this->aliases = array_values($aliases);
 
         return $this;
     }
@@ -444,15 +444,15 @@ class GenericContainer implements TestContainer
 
         if ($this->networkName !== null) {
             $networkingConfig = new NetworkingConfig();
-            $aliases = $this->aliases ?? [];
+            $aliases = $this->aliases;
             if ($this->name) {
                 $aliases[] = $this->name;
             }
+            $endpointSettings = new EndpointSettings();
+            $endpointSettings->setNetworkID($this->networkName);
+            $endpointSettings->setAliases($aliases);
             $endpointsConfig = [
-                $this->networkName => new EndpointSettings([
-                    'networkID' => $this->networkName,
-                    'aliases' => $aliases,
-                ]),
+                $this->networkName => $endpointSettings,
             ];
             $networkingConfig->setEndpointsConfig($endpointsConfig);
             $containerCreatePostBody->setNetworkingConfig($networkingConfig);
@@ -497,7 +497,7 @@ class GenericContainer implements TestContainer
     }
 
     /**
-     * @return array<string, array<int, PortBinding>>
+     * @return array<string, list<PortBinding>>
      */
     protected function createPortBindings(): array
     {

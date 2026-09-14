@@ -16,7 +16,8 @@
     "require": {
         "ext-curl": "*",
         "php": ">= 8.1",
-        "beluga-php/docker-php": "^1.45",
+        "beluga-php/docker-php": "^1.45.7",
+        "beluga-php/docker-php-api": "^7.1.45.5",
         "php-http/client-common": "^2.7"
     },
     "require-dev": {
@@ -26,9 +27,9 @@
         "phpunit/phpunit": "^9.5",
         "brianium/paratest": "^6.11",
         "friendsofphp/php-cs-fixer": "^3.92",
-        "phpstan/phpstan": "^1.8",
-        "phpstan/phpstan-phpunit": "^1.1",
-        "phpstan/extension-installer": "^1.2",
+        "phpstan/phpstan": "^2.2",
+        "phpstan/phpstan-phpunit": "^2.0",
+        "phpstan/extension-installer": "^1.4",
         "predis/predis": "^3.0 || ^2.0"
     },
     "suggest": {

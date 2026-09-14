@@ -32,9 +32,9 @@ class OpenSearchContainerTest extends ContainerTestCase
 
         $this->assertNotEmpty($response);
 
-        /** @var array{cluster_name: string} $data */
-        $data = json_decode($response, true, JSON_THROW_ON_ERROR, JSON_THROW_ON_ERROR);
+        $data = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
 
+        $this->assertIsArray($data);
         $this->assertArrayHasKey('cluster_name', $data);
 
         $this->assertEquals('docker-cluster', $data['cluster_name']);

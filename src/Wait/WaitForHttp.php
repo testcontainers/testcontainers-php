@@ -106,7 +106,7 @@ class WaitForHttp extends BaseWaitStrategy
                 $this->resolveHostPort($container);
                 $containerAddress = $container->getHost();
 
-                $url = sprintf('%s://%s:%d%s', $this->protocol, $containerAddress, $this->hostPort, $this->path);
+                $url = "{$this->protocol}://{$containerAddress}:{$this->hostPort}{$this->path}";
                 $responseCode = $this->makeHttpRequest($url);
 
                 if ($responseCode === $this->expectedStatusCode) {
@@ -120,6 +120,9 @@ class WaitForHttp extends BaseWaitStrategy
         }
     }
 
+    /**
+     * @param non-empty-string $url
+     */
     private function makeHttpRequest(string $url): int
     {
         $ch = curl_init();

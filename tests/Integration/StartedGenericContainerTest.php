@@ -58,7 +58,6 @@ class StartedGenericContainerTest extends ContainerTestCase
 
         $stoppedContainer = $container->stop();
 
-        self::assertNotNull($stoppedContainer, 'Stopped container should not be null');
         self::assertSame(
             $container->getId(),
             $stoppedContainer->getId(),

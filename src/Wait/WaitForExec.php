@@ -15,7 +15,7 @@ use Testcontainers\Exception\ContainerWaitingTimeoutException;
 class WaitForExec extends BaseWaitStrategy
 {
     /**
-     * @param array<string> $command
+     * @param list<string> $command
      */
     public function __construct(
         protected array $command,
