@@ -25,6 +25,13 @@ docker info
 export DOCKER_HOST=unix:///var/run/docker.sock
 ```
 
+- If the socket cannot be reached from PHP but the `docker` or `podman` command works in your shell, switch to the CLI adapter:
+
+```bash
+export TESTCONTAINERS_CLIENT=cli
+export TESTCONTAINERS_CLI_BINARY=podman # or docker, nerdctl, ...
+```
+
 ## Container starts but app is not ready
 
 `GenericContainer` uses a running-state wait strategy by default.  

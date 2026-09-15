@@ -53,8 +53,7 @@ class TarBuilderTest extends TestCase
         $this->assertFileExists($extractedFile);
         $this->assertSame(self::TEST_CONTENT, file_get_contents($extractedFile));
 
-        $perms = substr(sprintf('%o', fileperms($extractedFile)), -3);
-        $this->assertSame('644', $perms, 'Expected file mode 0644');
+        $this->assertPosixMode('644', $extractedFile, 'Expected file mode 0644');
     }
 
     public function testShouldAddDirectoryRecursively(): void
@@ -82,8 +81,7 @@ class TarBuilderTest extends TestCase
         $this->assertSame('file1', file_get_contents($oneExtracted));
         $this->assertSame('file2', file_get_contents($twoExtracted));
 
-        $dirPerms = substr(sprintf('%o', fileperms($extractDir . '/mydir')), -3);
-        $this->assertSame('755', $dirPerms, 'Expected directory mode 0755');
+        $this->assertPosixMode('755', $extractDir . '/mydir', 'Expected directory mode 0755');
     }
 
     public function testShouldAddInlineContent(): void
@@ -104,8 +102,7 @@ class TarBuilderTest extends TestCase
         $this->assertFileExists($inlineExtracted);
         $this->assertSame($content, file_get_contents($inlineExtracted));
 
-        $perms = substr(sprintf('%o', fileperms($inlineExtracted)), -3);
-        $this->assertSame('777', $perms, 'Expected file mode 0777');
+        $this->assertPosixMode('777', $inlineExtracted, 'Expected file mode 0777');
     }
 
     public function testShouldFailOnInvalidFilePath(): void
@@ -168,6 +165,22 @@ class TarBuilderTest extends TestCase
 
         $scanned = array_diff(scandir($extractDir) ?: [], ['.', '..']);
         $this->assertCount(0, $scanned, 'Expected no files after clear()');
+    }
+
+    /**
+     * Asserts the Unix permission bits of an extracted path.
+     *
+     * Windows filesystems cannot store Unix modes, so chmod() and fileperms()
+     * only reflect the read-only flag there; the check is skipped on Windows.
+     */
+    private function assertPosixMode(string $expected, string $path, string $message): void
+    {
+        if (PHP_OS_FAMILY === 'Windows') {
+            return;
+        }
+
+        $perms = substr(sprintf('%o', fileperms($path)), -3);
+        $this->assertSame($expected, $perms, $message);
     }
 
     /**

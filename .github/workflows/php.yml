@@ -48,19 +48,46 @@ jobs:
 
   phpunit:
     runs-on: ubuntu-latest
-    name: Integration Tests
+    name: Integration Tests (${{ matrix.adapter }})
+    strategy:
+      fail-fast: false
+      matrix:
+        adapter: [api, cli]
 
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Setup PHP
       uses: shivammathur/setup-php@v2
       with:
         php-version: '8.1'
-        extensions: redis, pgsql, mongodb-mongodb/mongo-php-driver@1.15.0
+        extensions: curl, pdo, pdo_mysql, pdo_pgsql, redis
 
     - name: Install dependencies
       run: composer install --prefer-dist --no-progress
 
     - name: Run test suite
       run: composer run integration
+      env:
+        TESTCONTAINERS_CLIENT: ${{ matrix.adapter }}
+
+  phpunit-windows:
+    runs-on: windows-latest
+    name: Unit Tests (windows-latest)
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.1'
+        extensions: curl, pdo, pdo_mysql, pdo_pgsql
+
+    - name: Install dependencies
+      run: composer install --prefer-dist --no-progress
+
+    # Linux images cannot run on the Windows runner's Docker daemon, so only the
+    # unit suite (including the npipe/tcp host parsing tests) is executed here.
+    - name: Run unit test suite
+      run: vendor/bin/phpunit tests/Unit

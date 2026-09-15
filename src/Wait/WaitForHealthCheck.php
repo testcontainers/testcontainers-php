@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Testcontainers\Wait;
 
-use Docker\API\Model\ContainersIdJsonGetResponse200;
+use Testcontainers\Docker\Model\ContainersIdJsonGetResponse200;
 use Testcontainers\Container\StartedTestContainer;
 use Testcontainers\Exception\ContainerStateException;
 use Testcontainers\Exception\ContainerWaitingTimeoutException;
