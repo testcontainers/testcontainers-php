@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Testcontainers\Container;
 
-use Testcontainers\Docker\DockerClient;
+use Testcontainers\Docker\DockerClientInterface;
 use Testcontainers\Docker\Model\PortBinding;
 
 interface StartedTestContainer
@@ -19,7 +19,7 @@ interface StartedTestContainer
      */
     public function getBoundPorts(): iterable;
 
-    public function getClient(): DockerClient;
+    public function getClient(): DockerClientInterface;
 
     public function getFirstMappedPort(): int;
 

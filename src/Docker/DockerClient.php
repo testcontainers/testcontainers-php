@@ -17,10 +17,8 @@ use Testcontainers\Docker\Model\IdResponse;
 use Testcontainers\Docker\Model\Network;
 use Testcontainers\Docker\Stream\CreateImageStream;
 
-class DockerClient
+class DockerClient implements DockerClientInterface
 {
-    public const FETCH_RESPONSE = 1;
-
     public function __construct(
         private ClientInterface $client
     ) {

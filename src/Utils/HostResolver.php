@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Testcontainers\Utils;
 
-use Testcontainers\Docker\DockerClient;
+use Testcontainers\Docker\DockerClientInterface;
 use Testcontainers\Docker\Model\Network;
 use RuntimeException;
 use Testcontainers\Container\GenericContainer;
@@ -12,7 +12,7 @@ use Testcontainers\ContainerClient\DockerContainerClient;
 
 class HostResolver
 {
-    public function __construct(protected ?DockerClient $dockerClient = null)
+    public function __construct(protected ?DockerClientInterface $dockerClient = null)
     {
         $this->dockerClient = $dockerClient ?? DockerContainerClient::getDockerClient();
     }

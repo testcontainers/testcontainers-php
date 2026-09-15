@@ -5,18 +5,24 @@ declare(strict_types=1);
 namespace Testcontainers\ContainerClient;
 
 use Composer\InstalledVersions;
+use RuntimeException;
+use Testcontainers\Docker\Cli\CliDockerClient;
 use Testcontainers\Docker\DockerClient;
+use Testcontainers\Docker\DockerClientInterface;
 
 class DockerContainerClient
 {
-    /**
-     * @var DockerClient|null Singleton instance of DockerClient
-     */
-    private static ?DockerClient $dockerClient = null;
+    public const ADAPTER_API = 'api';
+    public const ADAPTER_CLI = 'cli';
 
     /**
-     * @var (callable(string): DockerClient)|null Factory for the Docker client, receiving the User-Agent string.
-     *     When null, DockerClient::create() is used.
+     * @var DockerClientInterface|null Singleton instance of the Docker client
+     */
+    private static ?DockerClientInterface $dockerClient = null;
+
+    /**
+     * @var (callable(string): DockerClientInterface)|null Factory for the Docker client, receiving the User-Agent string.
+     *     When null, the adapter named in TESTCONTAINERS_CLIENT is created.
      */
     private static $dockerClientFactory = null;
 
@@ -25,22 +31,44 @@ class DockerContainerClient
     }
 
     /**
-     * Returns the singleton DockerClient instance.
+     * Returns the singleton Docker client instance.
      *
-     * @return DockerClient The singleton DockerClient instance.
-     * @throws \RuntimeException If the DockerClient instance could not be created.
+     * The adapter is chosen by the TESTCONTAINERS_CLIENT environment variable:
+     *  - "api" (default): Docker Engine HTTP API over the socket/TCP endpoint from DOCKER_HOST
+     *  - "cli": a Docker-compatible command line binary, see TESTCONTAINERS_CLI_BINARY (default "docker")
+     *
+     * @throws RuntimeException If the client could not be created.
      */
-    public static function getDockerClient(): DockerClient
+    public static function getDockerClient(): DockerClientInterface
     {
         if (self::$dockerClient === null) {
             $userAgent = 'tc-php/' . static::resolveVersion();
 
             self::$dockerClient = self::$dockerClientFactory !== null
                 ? (self::$dockerClientFactory)($userAgent)
-                : DockerClient::create($userAgent);
+                : self::createFromEnvironment($userAgent);
         }
 
         return self::$dockerClient;
+    }
+
+    /**
+     * @param non-empty-string $userAgent
+     */
+    private static function createFromEnvironment(string $userAgent): DockerClientInterface
+    {
+        $adapter = getenv('TESTCONTAINERS_CLIENT') ?: self::ADAPTER_API;
+
+        return match (strtolower($adapter)) {
+            self::ADAPTER_API => DockerClient::create($userAgent),
+            self::ADAPTER_CLI => CliDockerClient::create(),
+            default => throw new RuntimeException(sprintf(
+                'Unsupported TESTCONTAINERS_CLIENT value "%s"; expected "%s" or "%s"',
+                $adapter,
+                self::ADAPTER_API,
+                self::ADAPTER_CLI
+            )),
+        };
     }
 
     /**
@@ -68,9 +96,9 @@ class DockerContainerClient
      * Injects a DockerClient instance for testing or special use cases.
      * Note: clients injected via this method will not have the tc-php User-Agent header applied automatically.
      *
-     * @param DockerClient $client The DockerClient instance to set.
+     * @param DockerClientInterface $client The client instance to set.
      */
-    public static function setDockerClient(DockerClient $client): void
+    public static function setDockerClient(DockerClientInterface $client): void
     {
         self::$dockerClient = $client;
     }
@@ -79,7 +107,7 @@ class DockerContainerClient
      * Injects a factory used to build the DockerClient from the User-Agent string.
      * For use in tests only — do not call in production code.
      *
-     * @param (callable(string): DockerClient)|null $dockerClientFactory
+     * @param (callable(string): DockerClientInterface)|null $dockerClientFactory
      */
     public static function setDockerClientFactory(?callable $dockerClientFactory): void
     {

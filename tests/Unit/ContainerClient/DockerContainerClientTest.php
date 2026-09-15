@@ -6,6 +6,7 @@ namespace Testcontainers\Tests\Unit\ContainerClient;
 
 use PHPUnit\Framework\TestCase;
 use Testcontainers\ContainerClient\DockerContainerClient;
+use Testcontainers\Docker\Cli\CliDockerClient;
 use Testcontainers\Docker\Client\ClientInterface;
 use Testcontainers\Docker\DockerClient;
 
@@ -49,6 +50,8 @@ class DockerContainerClientTest extends TestCase
         $property->setValue(null, null);
 
         DockerContainerClient::resetDockerClientFactory();
+        putenv('TESTCONTAINERS_CLIENT');
+        putenv('TESTCONTAINERS_CLI_BINARY');
     }
 
     /**
@@ -163,5 +166,29 @@ class DockerContainerClientTest extends TestCase
             $capturedUserAgent,
             'When version resolution falls back to unknown, User-Agent must be tc-php/unknown'
         );
+    }
+
+    // -------------------------------------------------------------------------
+    // Adapter selection via TESTCONTAINERS_CLIENT
+    // -------------------------------------------------------------------------
+
+    public function testCliAdapterIsSelectedFromEnvironment(): void
+    {
+        putenv('TESTCONTAINERS_CLIENT=cli');
+        putenv('TESTCONTAINERS_CLI_BINARY=podman');
+
+        $client = DockerContainerClient::getDockerClient();
+
+        $this->assertInstanceOf(CliDockerClient::class, $client);
+        $this->assertSame('podman', $client->getBinary());
+    }
+
+    public function testUnknownAdapterIsRejected(): void
+    {
+        putenv('TESTCONTAINERS_CLIENT=carrier-pigeon');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('carrier-pigeon');
+        DockerContainerClient::getDockerClient();
     }
 }

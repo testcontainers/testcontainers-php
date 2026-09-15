@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Testcontainers\Container;
 
-use Testcontainers\Docker\DockerClient;
+use Testcontainers\Docker\DockerClientInterface;
 use Testcontainers\Docker\Exception\ContainerCreateNotFoundException;
 use Testcontainers\Docker\Model\ContainerCreateResponse;
 use Testcontainers\Docker\Model\ContainersCreatePostBody;
@@ -28,7 +28,7 @@ use Testcontainers\Utils\DockerAuthConfig;
 
 class GenericContainer implements TestContainer
 {
-    protected DockerClient $dockerClient;
+    protected DockerClientInterface $dockerClient;
 
     protected string $image;
 

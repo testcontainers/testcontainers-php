@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Testcontainers\Container;
 
-use Testcontainers\Docker\DockerClient;
+use Testcontainers\Docker\DockerClientInterface;
 use Testcontainers\Docker\Model\ContainersIdExecPostBody;
 use Testcontainers\Docker\Model\ContainersIdJsonGetResponse200;
 use Testcontainers\Docker\Model\EndpointSettings;
@@ -16,13 +16,13 @@ use Testcontainers\Utils\HostResolver;
 
 class StartedGenericContainer implements StartedTestContainer
 {
-    protected DockerClient $dockerClient;
+    protected DockerClientInterface $dockerClient;
 
     protected ?ContainersIdJsonGetResponse200 $inspectResponse = null;
 
     protected ?string $lastExecId = null;
 
-    public function __construct(protected readonly string $id, ?DockerClient $dockerClient = null)
+    public function __construct(protected readonly string $id, ?DockerClientInterface $dockerClient = null)
     {
         $this->dockerClient = $dockerClient ?? DockerContainerClient::getDockerClient();
     }
@@ -37,7 +37,7 @@ class StartedGenericContainer implements StartedTestContainer
         return $this->lastExecId;
     }
 
-    public function getClient(): DockerClient
+    public function getClient(): DockerClientInterface
     {
         return $this->dockerClient;
     }
@@ -63,7 +63,7 @@ class StartedGenericContainer implements StartedTestContainer
         $this->lastExecId = $exec->getId();
 
         $contents = $this->dockerClient
-            ->execStart($this->lastExecId, null, DockerClient::FETCH_RESPONSE)
+            ->execStart($this->lastExecId, null, DockerClientInterface::FETCH_RESPONSE)
             ?->getBody()
             ->getContents() ?? '';
 
@@ -91,7 +91,7 @@ class StartedGenericContainer implements StartedTestContainer
             ->containerLogs(
                 $this->id,
                 ['stdout' => true, 'stderr' => true],
-                DockerClient::FETCH_RESPONSE
+                DockerClientInterface::FETCH_RESPONSE
             )
             ?->getBody()
             ->getContents() ?? '';
