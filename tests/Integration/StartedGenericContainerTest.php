@@ -71,6 +71,18 @@ class StartedGenericContainerTest extends ContainerTestCase
         );
     }
 
+    public function testShouldStopAutoRemovedContainer(): void
+    {
+        $container = (new GenericContainer('alpine'))
+            ->withCommand(['sh', '-c', 'trap "exit 0" TERM; while true; do sleep 0.1; done'])
+            ->withAutoRemove(true)
+            ->start();
+
+        $stoppedContainer = $container->stop();
+
+        self::assertSame($container->getId(), $stoppedContainer->getId());
+    }
+
     public function testShouldRestartContainer(): void
     {
         $container = (new GenericContainer('nginx'))

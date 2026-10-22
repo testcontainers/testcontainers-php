@@ -78,8 +78,11 @@ class StartedGenericContainer implements StartedTestContainer
 
     public function stop(): StoppedTestContainer
     {
+        $autoRemove = $this->inspect()?->getHostConfig()?->getAutoRemove() ?? false;
         $this->dockerClient->containerStop($this->id);
-        $this->dockerClient->containerDelete($this->id);
+        if (!$autoRemove) {
+            $this->dockerClient->containerDelete($this->id);
+        }
 
         return new StoppedGenericContainer($this->id);
     }
