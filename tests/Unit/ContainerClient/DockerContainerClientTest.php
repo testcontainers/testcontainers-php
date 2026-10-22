@@ -247,6 +247,72 @@ class DockerContainerClientTest extends TestCase
         );
     }
 
+    // -------------------------------------------------------------------------
+    // API version path of the default client
+    // -------------------------------------------------------------------------
+
+    public function testDefaultClientUsesNegotiatedApiVersionPathOnce(): void
+    {
+        // A daemon whose maximum API version is below the installed docker-php-api line,
+        // as Podman reports. Requests must carry only the negotiated version path.
+        $log = (string) tempnam(sys_get_temp_dir(), 'tc-docker-api-log');
+        $router = (string) tempnam(sys_get_temp_dir(), 'tc-docker-api-router');
+        file_put_contents($router, <<<'PHP'
+            <?php
+            $path = (string) parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+            file_put_contents((string) getenv('TC_DOCKER_API_LOG'), $path . "\n", FILE_APPEND);
+            if ($path === '/_ping') {
+                header('API-Version: 1.41');
+                echo 'OK';
+            } elseif ($path === '/v1.41/info') {
+                header('Content-Type: application/json');
+                echo '{}';
+            } else {
+                http_response_code(404);
+                echo '404 page not found';
+            }
+            PHP);
+
+        $probe = stream_socket_server('tcp://127.0.0.1:0');
+        $this->assertNotFalse($probe);
+        $address = (string) stream_socket_get_name($probe, false);
+        fclose($probe);
+
+        $server = proc_open(
+            [PHP_BINARY, '-S', $address, $router],
+            [1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']],
+            $pipes,
+            null,
+            ['TC_DOCKER_API_LOG' => $log]
+        );
+        $this->assertIsResource($server);
+
+        $dockerHost = getenv('DOCKER_HOST');
+        $apiVersion = getenv('DOCKER_API_VERSION');
+        try {
+            $deadline = microtime(true) + 5;
+            while (($connection = @fsockopen('tcp://' . $address)) === false && microtime(true) < $deadline) {
+                usleep(50000);
+            }
+            $this->assertNotFalse($connection, 'The stub Docker daemon did not start');
+            fclose($connection);
+
+            putenv('DOCKER_HOST=tcp://' . $address);
+            putenv('DOCKER_API_VERSION');
+
+            DockerContainerClient::getDockerClient();
+
+            $this->assertSame(['/_ping', '/v1.41/info'], file($log, FILE_IGNORE_NEW_LINES));
+        } finally {
+            putenv($dockerHost === false ? 'DOCKER_HOST' : 'DOCKER_HOST=' . $dockerHost);
+            putenv($apiVersion === false ? 'DOCKER_API_VERSION' : 'DOCKER_API_VERSION=' . $apiVersion);
+            proc_terminate($server);
+            proc_close($server);
+            unlink($router);
+            unlink($log);
+        }
+    }
+
     public function testUserAgentHeaderContainsUnknownWhenVersionResolutionFails(): void
     {
         // Injects no-socket factories (same pattern as above), then calls

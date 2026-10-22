@@ -91,12 +91,14 @@ class DockerContainerClient
 
     /**
      * Builds the DockerClient from the given HTTP client, using the injected factory if set.
+     * The server plugins are applied only to an injected HTTP client: the client from
+     * DockerClientFactory already adds the daemon address and the negotiated API path.
      */
     private static function createDockerClient(ClientInterface $httpClient): DockerClient
     {
         return self::$dockerClientFactory !== null
             ? (self::$dockerClientFactory)($httpClient)
-            : DockerClient::create($httpClient);
+            : DockerClient::create($httpClient, [], [], self::$httpClientFactory !== null);
     }
 
     /**
