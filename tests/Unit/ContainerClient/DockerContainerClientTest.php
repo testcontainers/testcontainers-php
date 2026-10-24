@@ -7,8 +7,13 @@ namespace Testcontainers\Tests\Unit\ContainerClient;
 use Docker\Docker as DockerClient;
 use Http\Client\Common\Plugin\HeaderDefaultsPlugin;
 use Http\Client\Common\PluginClient;
+use Http\Client\Common\PluginClientFactory;
+use Http\Client\HttpAsyncClient;
+use Http\Discovery\Psr17FactoryDiscovery;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Client\ClientInterface;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 use Testcontainers\ContainerClient\DockerContainerClient;
 
 /**
@@ -245,6 +250,48 @@ class DockerContainerClientTest extends TestCase
             $headers['User-Agent'],
             'HeaderDefaultsPlugin must set User-Agent to tc-php/<version>'
         );
+    }
+
+    // -------------------------------------------------------------------------
+    // API version path of the default client
+    // -------------------------------------------------------------------------
+
+    public function testDefaultClientUsesNegotiatedApiVersionPathOnce(): void
+    {
+        // A daemon whose maximum API version is below the installed docker-php-api line,
+        // as Podman reports. Requests must carry only the negotiated version path.
+        $paths = [];
+        $daemon = $this->createMock(ClientInterface::class);
+        $daemon->method('sendRequest')->willReturnCallback(
+            static function (RequestInterface $request) use (&$paths): ResponseInterface {
+                $path = $request->getUri()->getPath();
+                $paths[] = $path;
+                $responses = Psr17FactoryDiscovery::findResponseFactory();
+                $streams = Psr17FactoryDiscovery::findStreamFactory();
+
+                return match ($path) {
+                    '/_ping' => $responses->createResponse(200)->withHeader('API-Version', '1.41')->withBody($streams->createStream('OK')),
+                    '/v1.41/info' => $responses->createResponse(200)->withBody($streams->createStream('{}')),
+                    default => $responses->createResponse(404)->withBody($streams->createStream('404 page not found')),
+                };
+            }
+        );
+
+        $apiVersion = getenv('DOCKER_API_VERSION');
+        putenv('DOCKER_API_VERSION');
+        PluginClientFactory::setFactory(
+            static fn (ClientInterface|HttpAsyncClient $socketClient, array $plugins): PluginClient => new PluginClient($daemon, $plugins)
+        );
+        try {
+            DockerContainerClient::getDockerClient();
+        } finally {
+            PluginClientFactory::setFactory(
+                static fn (ClientInterface|HttpAsyncClient $client, array $plugins): PluginClient => new PluginClient($client, $plugins)
+            );
+            putenv($apiVersion === false ? 'DOCKER_API_VERSION' : 'DOCKER_API_VERSION=' . $apiVersion);
+        }
+
+        $this->assertSame(['/_ping', '/v1.41/info'], $paths);
     }
 
     public function testUserAgentHeaderContainsUnknownWhenVersionResolutionFails(): void
