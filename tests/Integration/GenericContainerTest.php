@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Testcontainers\Tests\Integration;
 
 use Docker\API\Model\ContainersIdJsonGetResponse200;
+use Docker\API\Model\NetworksCreatePostBody;
 use PHPUnit\Framework\TestCase;
 use Testcontainers\Container\GenericContainer;
+use Testcontainers\ContainerClient\DockerContainerClient;
 use Testcontainers\Wait\WaitForHostPort;
 use Testcontainers\Wait\WaitForHttp;
 
@@ -149,6 +151,60 @@ class GenericContainerTest extends TestCase
         self::assertSame($mappedPort, $container->getFirstMappedPort());
 
         $container->stop();
+    }
+
+    public function testShouldReuseWaitForHttpForSeveralContainers(): void
+    {
+        $waitStrategy = (new WaitForHttp(80))->withPath('/');
+
+        $firstContainer = (new GenericContainer('nginx'))
+            ->withExposedPorts(80)
+            ->withWait($waitStrategy)
+            ->start();
+        $firstContainer->stop();
+
+        // The second container must be polled on its own host port, not on the stopped container's one
+        $secondContainer = (new GenericContainer('nginx'))
+            ->withExposedPorts(80)
+            ->withWait($waitStrategy)
+            ->start();
+
+        self::assertNotSame($firstContainer->getId(), $secondContainer->getId());
+
+        $secondContainer->stop();
+    }
+
+    public function testShouldReachContainerByNetworkAlias(): void
+    {
+        $dockerClient = DockerContainerClient::getDockerClient();
+        $networkName = 'tc-php-test-' . uniqid();
+        $network = new NetworksCreatePostBody();
+        $network->setName($networkName);
+        $dockerClient->networkCreate($network);
+
+        $server = null;
+        $client = null;
+        try {
+            $server = (new GenericContainer('alpine'))
+                ->withCommand(['tail', '-f', '/dev/null'])
+                ->withNetwork($networkName)
+                ->withAliases(['service-a'])
+                ->start();
+
+            $client = (new GenericContainer('alpine'))
+                ->withCommand(['tail', '-f', '/dev/null'])
+                ->withNetwork($networkName)
+                ->start();
+
+            // getent prints nothing if the alias does not resolve
+            $result = $client->exec(['getent', 'hosts', 'service-a']);
+
+            self::assertMatchesRegularExpression('/\d+\.\d+\.\d+\.\d+\s+service-a/', $result);
+        } finally {
+            $client?->stop();
+            $server?->stop();
+            $dockerClient->networkDelete($networkName);
+        }
     }
 
     public function testShouldSetLabels(): void
