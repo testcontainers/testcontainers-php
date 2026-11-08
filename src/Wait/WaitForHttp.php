@@ -30,6 +30,9 @@ class WaitForHttp extends BaseWaitStrategy
      */
     protected int $readTimeout = 1000;
 
+    /**
+     * @deprecated No longer set: the host port is resolved in each wait() call, so the strategy can be reused.
+     */
     protected ?int $hostPort = null;
 
     public function __construct(
@@ -94,6 +97,8 @@ class WaitForHttp extends BaseWaitStrategy
     public function wait(StartedTestContainer $container): void
     {
         $startTime = microtime(true) * 1000;
+        // Resolved per call, so the same strategy instance can be reused for several containers
+        $hostPort = null;
 
         while (true) {
             $elapsedTime = (microtime(true) * 1000) - $startTime;
@@ -103,10 +108,10 @@ class WaitForHttp extends BaseWaitStrategy
             }
 
             try {
-                $this->resolveHostPort($container);
+                $hostPort ??= $this->resolveHostPort($container);
                 $containerAddress = $container->getHost();
 
-                $url = "{$this->protocol}://{$containerAddress}:{$this->hostPort}{$this->path}";
+                $url = "{$this->protocol}://{$containerAddress}:{$hostPort}{$this->path}";
                 $responseCode = $this->makeHttpRequest($url);
 
                 if ($responseCode === $this->expectedStatusCode) {
@@ -147,13 +152,9 @@ class WaitForHttp extends BaseWaitStrategy
         return curl_getinfo($ch, CURLINFO_HTTP_CODE);
     }
 
-    private function resolveHostPort(StartedTestContainer $container): void
+    private function resolveHostPort(StartedTestContainer $container): int
     {
-        if ($this->hostPort !== null) {
-            return; // Port already resolved
-        }
-
-        $this->hostPort = $this->containerPort === null
+        return $this->containerPort === null
             ? $container->getFirstMappedPort()
             : $container->getMappedPort($this->containerPort);
     }

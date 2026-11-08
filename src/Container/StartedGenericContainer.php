@@ -4,17 +4,20 @@ declare(strict_types=1);
 
 namespace Testcontainers\Container;
 
-use Docker\API\Client;
+use Docker\API\Exception\ContainerExecConflictException;
+use Docker\API\Exception\ContainerLogsNotFoundException;
+use Docker\API\Exception\NotFoundException;
 use Docker\API\Model\ContainersIdExecPostBody;
 use Docker\API\Model\ContainersIdJsonGetResponse200;
 use Docker\API\Model\EndpointSettings;
 use Docker\API\Model\ExecIdStartPostBody;
 use Docker\API\Model\IdResponse;
 use Docker\API\Model\PortBinding;
-use Docker\API\Runtime\Client\Client as DockerRuntimeClient;
 use Docker\Docker;
+use Docker\Stream\DockerRawStream;
 use RuntimeException;
 use Testcontainers\ContainerClient\DockerContainerClient;
+use Testcontainers\Exception\ContainerNotRunningException;
 use Testcontainers\Utils\HostResolver;
 
 class StartedGenericContainer implements StartedTestContainer
@@ -47,6 +50,7 @@ class StartedGenericContainer implements StartedTestContainer
 
     /**
      * @param list<string> $command
+     * @throws ContainerNotRunningException If the container has stopped or is paused.
      */
     public function exec(array $command): string
     {
@@ -56,8 +60,13 @@ class StartedGenericContainer implements StartedTestContainer
             ->setAttachStderr(true);
 
         // Create and start the exec command
-        /** @var IdResponse | null $exec */
-        $exec = $this->dockerClient->containerExec($this->id, $execConfig);
+        try {
+            /** @var IdResponse | null $exec */
+            $exec = $this->dockerClient->containerExec($this->id, $execConfig);
+        } catch (ContainerExecConflictException $e) {
+            // docker-php reports every conflict as "container is paused"; Docker's own message says what is wrong
+            throw new ContainerNotRunningException($e->getErrorResponse()->getMessage() ?? $e->getMessage(), $this->id, $e);
+        }
 
         if ($exec === null || $exec->getId() === null) {
             throw new RuntimeException('Failed to create exec command');
@@ -68,20 +77,19 @@ class StartedGenericContainer implements StartedTestContainer
         $startConfig = new ExecIdStartPostBody();
         $startConfig->setDetach(false);
 
-        $contents = $this->dockerClient
-            ->execStart($this->lastExecId, $startConfig, Client::FETCH_RESPONSE)
-            ->getBody()
-            ->getContents();
-
-        return $this->sanitizeOutput($contents);
+        return $this->readOutput($this->dockerClient->execStart($this->lastExecId, $startConfig));
     }
 
     public function stop(): StoppedTestContainer
     {
-        $autoRemove = $this->inspect()?->getHostConfig()?->getAutoRemove() ?? false;
-        $this->dockerClient->containerStop($this->id);
-        if (!$autoRemove) {
-            $this->dockerClient->containerDelete($this->id);
+        try {
+            $autoRemove = $this->inspect()?->getHostConfig()?->getAutoRemove() ?? false;
+            $this->dockerClient->containerStop($this->id);
+            if (!$autoRemove) {
+                $this->dockerClient->containerDelete($this->id);
+            }
+        } catch (NotFoundException) {
+            // The container is already gone, e.g. removed by Docker after its process exited
         }
 
         return new StoppedGenericContainer($this->id);
@@ -94,22 +102,12 @@ class StartedGenericContainer implements StartedTestContainer
         return $this;
     }
 
+    /**
+     * @throws ContainerLogsNotFoundException If the container no longer exists.
+     */
     public function logs(): string
     {
-        $output = $this->dockerClient
-            ->containerLogs(
-                $this->id,
-                ['stdout' => true, 'stderr' => true],
-                DockerRuntimeClient::FETCH_RESPONSE
-            )
-            ->getBody()
-            ->getContents();
-
-        /**
-         * @var string|false $converted
-         */
-        $converted = mb_convert_encoding($output, 'UTF-8', 'UTF-8');
-        return $this->sanitizeOutput($converted == false ? $output : $converted);
+        return $this->readOutput($this->dockerClient->containerLogs($this->id, ['stdout' => true, 'stderr' => true]));
     }
 
     public function getHost(): string
@@ -228,6 +226,32 @@ class StartedGenericContainer implements StartedTestContainer
         return $ports;
     }
 
+    /**
+     * Read stdout and stderr, in the order they were written, from an output stream decoded by docker-php.
+     * Trailing line breaks are trimmed, so the output of a single-line command has none.
+     */
+    private function readOutput(?DockerRawStream $stream): string
+    {
+        // docker-php returns null instead of throwing only if throwOnUnexpectedStatus() was disabled on the client
+        if ($stream === null) {
+            throw new RuntimeException('Docker returned an error instead of the output stream');
+        }
+
+        $output = '';
+        $append = static function (string $chunk) use (&$output): void {
+            $output .= $chunk;
+        };
+
+        $stream->onStdout($append);
+        $stream->onStderr($append);
+        $stream->wait();
+
+        return rtrim($output, "\r\n");
+    }
+
+    /**
+     * @deprecated No longer used: exec() and logs() now read the output stream decoded by docker-php.
+     */
     protected function sanitizeOutput(string $output): string
     {
         return preg_replace('/[\x00-\x1F\x7F]/u', '', $output) ?? '';

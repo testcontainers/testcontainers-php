@@ -14,6 +14,8 @@ $container = (new GenericContainer('alpine:3.20'))
     ->start();
 ```
 
+The image name can include a registry, a tag, and a digest, for example `registry.example.com:5000/team/app:1.0@sha256:…`. A digest pins the exact image that gets pulled. Invalid names, such as ones with uppercase letters, are rejected by the constructor with an `InvalidArgumentException`.
+
 ## Common container options
 
 ### Environment variables
@@ -71,6 +73,16 @@ $container = (new GenericContainer('alpine:3.20'))
     ->withWorkingDir('/app')
     ->withLabels(['suite' => 'integration'])
     ->withMount(__DIR__, '/workspace')
+    ->start();
+```
+
+### tmpfs mounts
+
+`withTmpfs()` mounts an in-memory filesystem at the given container path. The second argument takes mount options and defaults to `rw,noexec`. Modules support it too, which is handy for database data directories such as the [PostgreSQL module](../modules/postgresql.md)'s: data stays in memory instead of being written to disk, which speeds up tests.
+
+```php
+$container = (new PostgresContainer('16'))
+    ->withTmpfs('/var/lib/postgresql/data', 'rw,size=256m')
     ->start();
 ```
 

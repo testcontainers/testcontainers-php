@@ -241,20 +241,8 @@ class DockerAuthConfig
 
     public static function getRegistryFromImage(string $image): string
     {
-        $slashPos = strpos($image, '/');
+        $registry = DockerImageName::parse($image)->getRegistry();
 
-        if ($slashPos === false) {
-            return 'docker.io';
-        }
-
-        $potentialRegistry = substr($image, 0, $slashPos);
-
-        if (str_contains($potentialRegistry, '.') ||
-            str_contains($potentialRegistry, ':') ||
-            $potentialRegistry === 'localhost') {
-            return $potentialRegistry;
-        }
-
-        return 'docker.io';
+        return $registry !== '' ? $registry : 'docker.io';
     }
 }

@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Testcontainers\Tests\Integration;
 
 use Docker\API\Model\ContainersIdJsonGetResponse200;
+use Docker\API\Model\NetworksCreatePostBody;
 use PHPUnit\Framework\TestCase;
 use Testcontainers\Container\GenericContainer;
+use Testcontainers\ContainerClient\DockerContainerClient;
 use Testcontainers\Wait\WaitForHostPort;
 use Testcontainers\Wait\WaitForHttp;
 
@@ -22,6 +24,28 @@ class GenericContainerTest extends TestCase
         self::assertSame('testcontainers', $result);
 
         $container->stop();
+    }
+
+    public function testExecReturnsCompleteOutput(): void
+    {
+        $container = (new GenericContainer('alpine'))
+            ->withCommand(['tail', '-f', '/dev/null'])
+            ->start();
+
+        try {
+            self::assertSame("first\nsecond", $container->exec(['sh', '-c', 'echo first; sleep 0.2; echo second']));
+            self::assertSame("out\nerr", $container->exec(['sh', '-c', 'echo out; sleep 0.2; echo err >&2']));
+            self::assertSame("a\tb", $container->exec(['printf', 'a\tb']));
+
+            // The output is sent in frames whose 8-byte header encodes the size; sizes like 128 or 300
+            // used to leak header bytes into the output or make it empty
+            foreach ([39, 100, 127, 128, 200, 300, 70000] as $size) {
+                $output = $container->exec(['sh', '-c', "head -c {$size} /dev/zero | tr '\\000' x"]);
+                self::assertSame(str_repeat('x', $size), $output, "Output of {$size} bytes");
+            }
+        } finally {
+            $container->stop();
+        }
     }
 
     public function testShouldCopyContentToContainer(): void
@@ -149,6 +173,60 @@ class GenericContainerTest extends TestCase
         self::assertSame($mappedPort, $container->getFirstMappedPort());
 
         $container->stop();
+    }
+
+    public function testShouldReuseWaitForHttpForSeveralContainers(): void
+    {
+        $waitStrategy = (new WaitForHttp(80))->withPath('/');
+
+        $firstContainer = (new GenericContainer('nginx'))
+            ->withExposedPorts(80)
+            ->withWait($waitStrategy)
+            ->start();
+        $firstContainer->stop();
+
+        // The second container must be polled on its own host port, not on the stopped container's one
+        $secondContainer = (new GenericContainer('nginx'))
+            ->withExposedPorts(80)
+            ->withWait($waitStrategy)
+            ->start();
+
+        self::assertNotSame($firstContainer->getId(), $secondContainer->getId());
+
+        $secondContainer->stop();
+    }
+
+    public function testShouldReachContainerByNetworkAlias(): void
+    {
+        $dockerClient = DockerContainerClient::getDockerClient();
+        $networkName = 'tc-php-test-' . uniqid();
+        $network = new NetworksCreatePostBody();
+        $network->setName($networkName);
+        $dockerClient->networkCreate($network);
+
+        $server = null;
+        $client = null;
+        try {
+            $server = (new GenericContainer('alpine'))
+                ->withCommand(['tail', '-f', '/dev/null'])
+                ->withNetwork($networkName)
+                ->withAliases(['service-a'])
+                ->start();
+
+            $client = (new GenericContainer('alpine'))
+                ->withCommand(['tail', '-f', '/dev/null'])
+                ->withNetwork($networkName)
+                ->start();
+
+            // getent prints nothing if the alias does not resolve
+            $result = $client->exec(['getent', 'hosts', 'service-a']);
+
+            self::assertMatchesRegularExpression('/\d+\.\d+\.\d+\.\d+\s+service-a/', $result);
+        } finally {
+            $client?->stop();
+            $server?->stop();
+            $dockerClient->networkDelete($networkName);
+        }
     }
 
     public function testShouldSetLabels(): void

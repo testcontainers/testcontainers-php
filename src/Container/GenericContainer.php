@@ -18,6 +18,7 @@ use Docker\Stream\CreateImageStream;
 use InvalidArgumentException;
 use RuntimeException;
 use Testcontainers\ContainerClient\DockerContainerClient;
+use Testcontainers\Utils\DockerImageName;
 use Testcontainers\Utils\PortGenerator\PortGenerator;
 use Testcontainers\Utils\PortGenerator\RandomUniquePortGenerator;
 use Testcontainers\Utils\PortNormalizer;
@@ -102,8 +103,13 @@ class GenericContainer implements TestContainer
     /** @var array<string> List of exposed ports in the format ['8080/tcp'] */
     protected array $exposedPorts = [];
 
+    /**
+     * @throws InvalidArgumentException If the image name is not a valid Docker image name.
+     */
     public function __construct(string $image)
     {
+        DockerImageName::parse($image)->assertValid();
+
         $this->image = $image;
         $this->dockerClient = DockerContainerClient::getDockerClient();
         $this->waitStrategy = new WaitForContainer();
@@ -515,13 +521,13 @@ class GenericContainer implements TestContainer
 
     protected function pullImage(): void
     {
-        [$fromImage, $tag] = explode(':', $this->image) + [1 => 'latest'];
+        $imageName = DockerImageName::parse($this->image);
 
         // Build headers for the request
         $headers = [];
 
         // Try to get authentication for the registry
-        $registry = DockerAuthConfig::getRegistryFromImage($fromImage);
+        $registry = DockerAuthConfig::getRegistryFromImage($this->image);
         $credentials = DockerAuthConfig::getInstance()->getAuthForRegistry($registry);
 
         if ($credentials !== null) {
@@ -537,8 +543,9 @@ class GenericContainer implements TestContainer
         $imageCreateResponse = $this->dockerClient->imageCreate(
             null,
             [
-                'fromImage' => $fromImage,
-                'tag' => $tag,
+                'fromImage' => $imageName->getUnversionedPart(),
+                // Pull by digest when one is given, so the pinned image is what gets pulled
+                'tag' => $imageName->getDigest() ?? $imageName->getVersionPart(),
             ],
             $headers
         );
