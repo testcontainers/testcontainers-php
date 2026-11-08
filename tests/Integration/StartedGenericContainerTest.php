@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Testcontainers\Tests\Integration;
 
+use Docker\API\Exception\ContainerLogsNotFoundException;
 use Testcontainers\Container\GenericContainer;
+use Testcontainers\Exception\ContainerNotRunningException;
+use Testcontainers\Wait\WaitForLog;
 
 class StartedGenericContainerTest extends ContainerTestCase
 {
@@ -48,6 +51,41 @@ class StartedGenericContainerTest extends ContainerTestCase
         self::assertSame('Hello, Testcontainers!', $output);
     }
 
+    public function testExecFailsWithClearMessageWhenContainerIsStopped(): void
+    {
+        $container = (new GenericContainer('alpine'))
+            ->withCommand(['tail', '-f', '/dev/null'])
+            ->start();
+
+        $this->container = $container;
+        $container->getClient()->containerStop($container->getId());
+
+        $this->expectException(ContainerNotRunningException::class);
+        $this->expectExceptionMessage("container {$container->getId()} is not running");
+
+        $container->exec(['echo', 'hello']);
+    }
+
+    public function testExecFailsWithClearMessageWhenContainerIsPaused(): void
+    {
+        $container = (new GenericContainer('alpine'))
+            ->withCommand(['tail', '-f', '/dev/null'])
+            ->start();
+
+        $this->container = $container;
+        $container->getClient()->containerPause($container->getId());
+
+        try {
+            $container->exec(['echo', 'hello']);
+            self::fail('Expected ContainerNotRunningException');
+        } catch (ContainerNotRunningException $e) {
+            self::assertStringContainsString('is paused', $e->getMessage());
+            self::assertSame($container->getId(), $e->getContainerId());
+        } finally {
+            $container->getClient()->containerUnpause($container->getId());
+        }
+    }
+
     public function testShouldStopContainer(): void
     {
         $container = (new GenericContainer('alpine'))
@@ -64,11 +102,21 @@ class StartedGenericContainerTest extends ContainerTestCase
             'Stopped container ID should match the original container ID'
         );
 
-        self::assertStringContainsString(
-            'No such container',
-            $container->logs(),
-            'Expected message indicating container does not exist'
-        );
+        $this->expectException(ContainerLogsNotFoundException::class);
+        $container->logs();
+    }
+
+    public function testShouldStopContainerThatIsAlreadyRemoved(): void
+    {
+        $container = (new GenericContainer('alpine'))
+            ->withCommand(['tail', '-f', '/dev/null'])
+            ->start();
+
+        $container->getClient()->containerDelete($container->getId(), ['force' => true]);
+
+        $stoppedContainer = $container->stop();
+
+        self::assertSame($container->getId(), $stoppedContainer->getId());
     }
 
     public function testShouldStopAutoRemovedContainer(): void
@@ -112,6 +160,18 @@ class StartedGenericContainerTest extends ContainerTestCase
 
         $logs = $container->logs();
         self::assertStringContainsString('Hello from logs!', $logs);
+    }
+
+    public function testShouldRetrieveMultilineLogsFromStdoutAndStderr(): void
+    {
+        $container = (new GenericContainer('alpine'))
+            ->withCommand(['sh', '-c', 'echo first; sleep 0.2; echo second >&2; sleep 0.2; printf "a\tb\n"; tail -f /dev/null'])
+            ->withWait(new WaitForLog("a\tb"))
+            ->start();
+
+        $this->container = $container;
+
+        self::assertSame("first\nsecond\na\tb", $container->logs());
     }
 
     public function testShouldRetrieveHost(): void

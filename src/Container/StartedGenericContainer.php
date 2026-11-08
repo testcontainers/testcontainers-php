@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Testcontainers\Container;
 
 use Docker\API\Client;
+use Docker\API\Exception\ContainerExecConflictException;
+use Docker\API\Exception\ContainerLogsNotFoundException;
+use Docker\API\Exception\NotFoundException;
 use Docker\API\Model\ContainersIdExecPostBody;
 use Docker\API\Model\ContainersIdJsonGetResponse200;
 use Docker\API\Model\EndpointSettings;
@@ -13,8 +16,11 @@ use Docker\API\Model\IdResponse;
 use Docker\API\Model\PortBinding;
 use Docker\API\Runtime\Client\Client as DockerRuntimeClient;
 use Docker\Docker;
+use Docker\Stream\DockerRawStream;
+use Psr\Http\Message\ResponseInterface;
 use RuntimeException;
 use Testcontainers\ContainerClient\DockerContainerClient;
+use Testcontainers\Exception\ContainerNotRunningException;
 use Testcontainers\Utils\HostResolver;
 
 class StartedGenericContainer implements StartedTestContainer
@@ -47,6 +53,7 @@ class StartedGenericContainer implements StartedTestContainer
 
     /**
      * @param list<string> $command
+     * @throws ContainerNotRunningException If the container has stopped or is paused.
      */
     public function exec(array $command): string
     {
@@ -56,8 +63,13 @@ class StartedGenericContainer implements StartedTestContainer
             ->setAttachStderr(true);
 
         // Create and start the exec command
-        /** @var IdResponse | null $exec */
-        $exec = $this->dockerClient->containerExec($this->id, $execConfig);
+        try {
+            /** @var IdResponse | null $exec */
+            $exec = $this->dockerClient->containerExec($this->id, $execConfig);
+        } catch (ContainerExecConflictException $e) {
+            // docker-php reports every conflict as "container is paused"; Docker's own message says what is wrong
+            throw new ContainerNotRunningException($e->getErrorResponse()->getMessage() ?? $e->getMessage(), $this->id, $e);
+        }
 
         if ($exec === null || $exec->getId() === null) {
             throw new RuntimeException('Failed to create exec command');
@@ -68,20 +80,25 @@ class StartedGenericContainer implements StartedTestContainer
         $startConfig = new ExecIdStartPostBody();
         $startConfig->setDetach(false);
 
-        $contents = $this->dockerClient
-            ->execStart($this->lastExecId, $startConfig, Client::FETCH_RESPONSE)
-            ->getBody()
-            ->getContents();
+        $response = $this->dockerClient->execStart($this->lastExecId, $startConfig, Client::FETCH_RESPONSE);
+        if ($response->getStatusCode() >= 400) {
+            throw new RuntimeException("Failed to start exec command: {$response->getBody()}");
+        }
 
-        return $this->sanitizeOutput($contents);
+        // The exec is created without a TTY, so its output is always multiplexed
+        return $this->readOutput($response, true);
     }
 
     public function stop(): StoppedTestContainer
     {
-        $autoRemove = $this->inspect()?->getHostConfig()?->getAutoRemove() ?? false;
-        $this->dockerClient->containerStop($this->id);
-        if (!$autoRemove) {
-            $this->dockerClient->containerDelete($this->id);
+        try {
+            $autoRemove = $this->inspect()?->getHostConfig()?->getAutoRemove() ?? false;
+            $this->dockerClient->containerStop($this->id);
+            if (!$autoRemove) {
+                $this->dockerClient->containerDelete($this->id);
+            }
+        } catch (NotFoundException) {
+            // The container is already gone, e.g. removed by Docker after its process exited
         }
 
         return new StoppedGenericContainer($this->id);
@@ -96,20 +113,22 @@ class StartedGenericContainer implements StartedTestContainer
 
     public function logs(): string
     {
-        $output = $this->dockerClient
-            ->containerLogs(
-                $this->id,
-                ['stdout' => true, 'stderr' => true],
-                DockerRuntimeClient::FETCH_RESPONSE
-            )
-            ->getBody()
-            ->getContents();
+        $response = $this->dockerClient->containerLogs(
+            $this->id,
+            ['stdout' => true, 'stderr' => true],
+            DockerRuntimeClient::FETCH_RESPONSE
+        );
+        if ($response->getStatusCode() === 404) {
+            throw new ContainerLogsNotFoundException($response);
+        }
+        if ($response->getStatusCode() >= 400) {
+            throw new RuntimeException("Failed to get container logs: {$response->getBody()}");
+        }
 
-        /**
-         * @var string|false $converted
-         */
-        $converted = mb_convert_encoding($output, 'UTF-8', 'UTF-8');
-        return $this->sanitizeOutput($converted === false ? $output : $converted);
+        // Logs of a container with a TTY are sent as is, otherwise they are multiplexed
+        $hasTty = $this->inspect()?->getConfig()?->getTty() ?? false;
+
+        return $this->readOutput($response, !$hasTty);
     }
 
     public function getHost(): string
@@ -228,6 +247,29 @@ class StartedGenericContainer implements StartedTestContainer
         return $ports;
     }
 
+    /**
+     * Read stdout and stderr, in the order they were written, from a Docker stream response.
+     * A multiplexed stream wraps each chunk of output in a frame with an 8-byte header, which is stripped here.
+     * Trailing line breaks are trimmed, so the output of a single-line command has none.
+     */
+    private function readOutput(ResponseInterface $response, bool $multiplexed): string
+    {
+        $output = '';
+        $append = static function (string $chunk) use (&$output): void {
+            $output .= $chunk;
+        };
+
+        $stream = new DockerRawStream($response->getBody(), $multiplexed);
+        $stream->onStdout($append);
+        $stream->onStderr($append);
+        $stream->wait();
+
+        return rtrim($output, "\r\n");
+    }
+
+    /**
+     * @deprecated No longer used by exec() and logs(), which now decode the Docker stream with readOutput().
+     */
     protected function sanitizeOutput(string $output): string
     {
         return preg_replace('/[\x00-\x1F\x7F]/u', '', $output) ?? '';

@@ -26,6 +26,28 @@ class GenericContainerTest extends TestCase
         $container->stop();
     }
 
+    public function testExecReturnsCompleteOutput(): void
+    {
+        $container = (new GenericContainer('alpine'))
+            ->withCommand(['tail', '-f', '/dev/null'])
+            ->start();
+
+        try {
+            self::assertSame("first\nsecond", $container->exec(['sh', '-c', 'echo first; sleep 0.2; echo second']));
+            self::assertSame("out\nerr", $container->exec(['sh', '-c', 'echo out; sleep 0.2; echo err >&2']));
+            self::assertSame("a\tb", $container->exec(['printf', 'a\tb']));
+
+            // The output is sent in frames whose 8-byte header encodes the size; sizes like 128 or 300
+            // used to leak header bytes into the output or make it empty
+            foreach ([39, 100, 127, 128, 200, 300, 70000] as $size) {
+                $output = $container->exec(['sh', '-c', "head -c {$size} /dev/zero | tr '\\000' x"]);
+                self::assertSame(str_repeat('x', $size), $output, "Output of {$size} bytes");
+            }
+        } finally {
+            $container->stop();
+        }
+    }
+
     public function testShouldCopyContentToContainer(): void
     {
         $inlineContent = 'hello world';

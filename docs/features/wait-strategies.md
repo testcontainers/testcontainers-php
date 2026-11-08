@@ -35,7 +35,7 @@ With regular expression matching:
 ```php
 $container = (new GenericContainer('opensearchproject/opensearch:latest'))
     ->withExposedPorts(9200)
-    ->withWait(new WaitForLog('/\]\s+started\?\[/', true, 30_000))
+    ->withWait(new WaitForLog('/\]\s+started$/m', true, 30_000))
     ->start();
 ```
 

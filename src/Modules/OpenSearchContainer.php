@@ -19,7 +19,7 @@ class OpenSearchContainer extends GenericContainer
         ]);
 
         $this->withWait(new WaitForLog(
-            '/\]\s+started\?\[/',
+            '/\]\s+started$/m',
             true,
             30000
         ));
