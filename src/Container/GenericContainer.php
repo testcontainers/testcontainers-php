@@ -131,12 +131,6 @@ class GenericContainer implements TestContainer
         return $this;
     }
 
-    /**
-     * Set Docker's AutoRemove flag, so Docker removes the container once it stops.
-     *
-     * The meaning changes in 2.0: withAutoRemove() will control whether stop() removes
-     * the container (default: true), and Docker's AutoRemove flag will no longer be set.
-     */
     public function withAutoRemove(bool $autoRemove): static
     {
         $this->autoRemove = $autoRemove;
