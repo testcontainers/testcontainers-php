@@ -30,6 +30,11 @@ class WaitForHttp extends BaseWaitStrategy
      */
     protected int $readTimeout = 1000;
 
+    /**
+     * @deprecated No longer set: the host port is resolved in each wait() call, so the strategy can be reused.
+     */
+    protected ?int $hostPort = null;
+
     public function __construct(
         protected ?int $containerPort = null,
         int $timeout = 10000,
