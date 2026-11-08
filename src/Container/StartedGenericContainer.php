@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Testcontainers\Container;
 
-use Docker\API\Client;
 use Docker\API\Exception\ContainerExecConflictException;
 use Docker\API\Exception\ContainerLogsNotFoundException;
 use Docker\API\Exception\NotFoundException;
@@ -14,10 +13,8 @@ use Docker\API\Model\EndpointSettings;
 use Docker\API\Model\ExecIdStartPostBody;
 use Docker\API\Model\IdResponse;
 use Docker\API\Model\PortBinding;
-use Docker\API\Runtime\Client\Client as DockerRuntimeClient;
 use Docker\Docker;
 use Docker\Stream\DockerRawStream;
-use Psr\Http\Message\ResponseInterface;
 use RuntimeException;
 use Testcontainers\ContainerClient\DockerContainerClient;
 use Testcontainers\Exception\ContainerNotRunningException;
@@ -80,13 +77,7 @@ class StartedGenericContainer implements StartedTestContainer
         $startConfig = new ExecIdStartPostBody();
         $startConfig->setDetach(false);
 
-        $response = $this->dockerClient->execStart($this->lastExecId, $startConfig, Client::FETCH_RESPONSE);
-        if ($response->getStatusCode() >= 400) {
-            throw new RuntimeException("Failed to start exec command: {$response->getBody()}");
-        }
-
-        // The exec is created without a TTY, so its output is always multiplexed
-        return $this->readOutput($response, true);
+        return $this->readOutput($this->dockerClient->execStart($this->lastExecId, $startConfig));
     }
 
     public function stop(): StoppedTestContainer
@@ -111,24 +102,12 @@ class StartedGenericContainer implements StartedTestContainer
         return $this;
     }
 
+    /**
+     * @throws ContainerLogsNotFoundException If the container no longer exists.
+     */
     public function logs(): string
     {
-        $response = $this->dockerClient->containerLogs(
-            $this->id,
-            ['stdout' => true, 'stderr' => true],
-            DockerRuntimeClient::FETCH_RESPONSE
-        );
-        if ($response->getStatusCode() === 404) {
-            throw new ContainerLogsNotFoundException($response);
-        }
-        if ($response->getStatusCode() >= 400) {
-            throw new RuntimeException("Failed to get container logs: {$response->getBody()}");
-        }
-
-        // Logs of a container with a TTY are sent as is, otherwise they are multiplexed
-        $hasTty = $this->inspect()?->getConfig()?->getTty() ?? false;
-
-        return $this->readOutput($response, !$hasTty);
+        return $this->readOutput($this->dockerClient->containerLogs($this->id, ['stdout' => true, 'stderr' => true]));
     }
 
     public function getHost(): string
@@ -248,18 +227,21 @@ class StartedGenericContainer implements StartedTestContainer
     }
 
     /**
-     * Read stdout and stderr, in the order they were written, from a Docker stream response.
-     * A multiplexed stream wraps each chunk of output in a frame with an 8-byte header, which is stripped here.
+     * Read stdout and stderr, in the order they were written, from an output stream decoded by docker-php.
      * Trailing line breaks are trimmed, so the output of a single-line command has none.
      */
-    private function readOutput(ResponseInterface $response, bool $multiplexed): string
+    private function readOutput(?DockerRawStream $stream): string
     {
+        // docker-php returns null instead of throwing only if throwOnUnexpectedStatus() was disabled on the client
+        if ($stream === null) {
+            throw new RuntimeException('Docker returned an error instead of the output stream');
+        }
+
         $output = '';
         $append = static function (string $chunk) use (&$output): void {
             $output .= $chunk;
         };
 
-        $stream = new DockerRawStream($response->getBody(), $multiplexed);
         $stream->onStdout($append);
         $stream->onStderr($append);
         $stream->wait();
@@ -268,7 +250,7 @@ class StartedGenericContainer implements StartedTestContainer
     }
 
     /**
-     * @deprecated No longer used by exec() and logs(), which now decode the Docker stream with readOutput().
+     * @deprecated No longer used: exec() and logs() now read the output stream decoded by docker-php.
      */
     protected function sanitizeOutput(string $output): string
     {
