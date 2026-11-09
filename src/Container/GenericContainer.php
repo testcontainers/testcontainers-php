@@ -20,7 +20,6 @@ use RuntimeException;
 use Testcontainers\ContainerClient\DockerContainerClient;
 use Testcontainers\Utils\DockerImageName;
 use Testcontainers\Utils\PortGenerator\PortGenerator;
-use Testcontainers\Utils\PortGenerator\RandomUniquePortGenerator;
 use Testcontainers\Utils\PortNormalizer;
 use Testcontainers\Utils\TarBuilder;
 use Testcontainers\Wait\WaitForContainer;
@@ -61,7 +60,7 @@ class GenericContainer implements TestContainer
 
     protected WaitStrategy $waitStrategy;
 
-    protected PortGenerator $portGenerator;
+    protected ?PortGenerator $portGenerator = null;
 
     protected bool $isPrivileged = false;
 
@@ -113,7 +112,6 @@ class GenericContainer implements TestContainer
         $this->image = $image;
         $this->dockerClient = DockerContainerClient::getDockerClient();
         $this->waitStrategy = new WaitForContainer();
-        $this->portGenerator = new RandomUniquePortGenerator();
     }
 
     public function getId(): string
@@ -511,7 +509,9 @@ class GenericContainer implements TestContainer
 
         foreach ($this->exposedPorts as $port) {
             $portBinding = new PortBinding();
-            $portBinding->setHostPort((string)$this->portGenerator->generatePort());
+            if ($this->portGenerator !== null) {
+                $portBinding->setHostPort((string)$this->portGenerator->generatePort());
+            }
             $portBinding->setHostIp('0.0.0.0');
             $portBindings[$port] = [$portBinding];
         }
