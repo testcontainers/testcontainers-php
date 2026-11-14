@@ -52,11 +52,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - php-version: '8.1'
-            mongodb-extension: mongodb-mongodb/mongo-php-driver@1.15.0
-          - php-version: '8.6'
-            mongodb-extension: mongodb
+        php-version: ['8.1', '8.6']
 
     steps:
     - uses: actions/checkout@v4
@@ -65,7 +61,7 @@ jobs:
       uses: shivammathur/setup-php@v2
       with:
         php-version: ${{ matrix.php-version }}
-        extensions: redis, pgsql, ${{ matrix.mongodb-extension }}
+        extensions: redis, pgsql, mongodb
 
     - name: Install dependencies
       run: composer install --prefer-dist --no-progress
